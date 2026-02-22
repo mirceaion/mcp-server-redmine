@@ -1,0 +1,13 @@
+feat: add AI-assisted scheduling and date management
+
+- Add tracker_id support to create_issue (defaults to Feature)
+- Add start_date, due_date, assigned_to_id to update_issue
+- Implement schedule_issues tool for automatic workload-based scheduling
+- Calculate work days with weekend skipping
+- Sequential task scheduling based on estimated hours
+- Default 6 hours/day capacity
+
+Enables natural language scheduling:
+"Schedule issues #10-15 starting Feb 24"
+
+AI analyzes estimates and creates realistic timeline automatically.
