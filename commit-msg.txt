@@ -1,10 +1,12 @@
-Update test suite with new tools
+Rename and update QUICKSTART to REDMINE_QUICKSTART
 
-- Add get_version test
-- Add list_issue_statuses test
-- Add list_trackers test
-- Add list_issue_priorities test
-- Add get_time_entries test
-- Add add_watcher test
-- Add remove_watcher test
-- Now tests all major functionality
+- Rename QUICKSTART.md to REDMINE_QUICKSTART.md for clarity
+- Add installation step
+- Add Windows/Linux/macOS specific examples
+- Add optional environment variables section
+- Expand common commands with new tools
+- Add version/sprint, time tracking, watchers, wiki examples
+- Add metadata discovery examples
+- Expand troubleshooting with more error codes
+- Add testing section with platform-specific commands
+- Update next steps with all documentation files
