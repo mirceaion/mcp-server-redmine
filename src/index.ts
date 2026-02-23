@@ -7,6 +7,8 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import axios, { AxiosInstance } from 'axios';
 import https from 'https';
+import { readFileSync } from 'fs';
+import { basename } from 'path';
 
 interface RedmineConfig {
   url: string;
@@ -81,6 +83,7 @@ class RedmineMCPServer {
               priority_id: { type: 'number', description: 'Priority (1=Low, 2=Normal, 3=High, 4=Urgent, 5=Immediate)' },
               estimated_hours: { type: 'number', description: 'Estimated hours' },
               parent_issue_id: { type: 'number', description: 'Parent issue ID for subtasks' },
+              custom_fields: { type: 'array', description: 'Custom fields array [{id: 1, value: "text"}]' },
             },
             required: ['project_id', 'subject'],
           },
@@ -98,9 +101,11 @@ class RedmineMCPServer {
               status_id: { type: 'number', description: 'Status (1=New, 2=In Progress, 3=Resolved, 5=Closed)' },
               priority_id: { type: 'number', description: 'Priority' },
               assigned_to_id: { type: 'number', description: 'User ID to assign' },
+              done_ratio: { type: 'number', description: 'Percentage complete (0-100)' },
               start_date: { type: 'string', description: 'Start date (YYYY-MM-DD)' },
               due_date: { type: 'string', description: 'Due date (YYYY-MM-DD)' },
               notes: { type: 'string', description: 'Comment to add' },
+              custom_fields: { type: 'array', description: 'Custom fields array [{id: 1, value: "text"}]' },
             },
             required: ['issue_id'],
           },
@@ -146,10 +151,107 @@ class RedmineMCPServer {
               project_id: { type: 'number', description: 'Project ID' },
               issue_ids: { type: 'array', items: { type: 'number' }, description: 'Issue IDs to schedule' },
               start_date: { type: 'string', description: 'Start date (YYYY-MM-DD), defaults to next available' },
-              hours_per_day: { type: 'number', description: 'Work hours per day (default 6)' },
-              skip_weekends: { type: 'boolean', description: 'Skip Saturdays and Sundays (default true)' },
+              weekday_hours: { type: 'number', description: 'Work hours per weekday (default 1.5)' },
+              weekend_hours: { type: 'number', description: 'Work hours per weekend day (default 3)' },
+              skip_sundays: { type: 'boolean', description: 'Skip Sundays (default false)' },
             },
             required: ['project_id', 'issue_ids'],
+          },
+        },
+        {
+          name: 'log_time',
+          description: 'Log time spent on an issue',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              issue_id: { type: 'number', description: 'Issue ID' },
+              hours: { type: 'number', description: 'Hours spent' },
+              activity_id: { type: 'number', description: 'Activity ID (optional, will use default if not specified)' },
+              activity_name: { type: 'string', description: 'Activity name (e.g., "Development", "Design") - alternative to activity_id' },
+              comments: { type: 'string', description: 'Description of work done' },
+              spent_on: { type: 'string', description: 'Date (YYYY-MM-DD), defaults to today' },
+            },
+            required: ['issue_id', 'hours'],
+          },
+        },
+        {
+          name: 'upload_attachment',
+          description: 'Upload a file attachment to an issue',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              issue_id: { type: 'number', description: 'Issue ID' },
+              file_path: { type: 'string', description: 'Absolute path to file' },
+              description: { type: 'string', description: 'File description' },
+            },
+            required: ['issue_id', 'file_path'],
+          },
+        },
+        {
+          name: 'create_wiki_page',
+          description: 'Create a new wiki page',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'string', description: 'Project identifier (not ID)' },
+              title: { type: 'string', description: 'Page title' },
+              text: { type: 'string', description: 'Page content (textile/markdown)' },
+              comments: { type: 'string', description: 'Version comment' },
+            },
+            required: ['project_id', 'title', 'text'],
+          },
+        },
+        {
+          name: 'update_wiki_page',
+          description: 'Update an existing wiki page',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'string', description: 'Project identifier (not ID)' },
+              title: { type: 'string', description: 'Page title' },
+              text: { type: 'string', description: 'Page content (textile/markdown)' },
+              comments: { type: 'string', description: 'Version comment' },
+            },
+            required: ['project_id', 'title', 'text'],
+          },
+        },
+        {
+          name: 'get_wiki_page',
+          description: 'Get wiki page content',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'string', description: 'Project identifier (not ID)' },
+              title: { type: 'string', description: 'Page title' },
+            },
+            required: ['project_id', 'title'],
+          },
+        },
+        {
+          name: 'list_users',
+          description: 'List all users in Redmine',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Filter by name' },
+              limit: { type: 'number', description: 'Max results (default 100)' },
+            },
+          },
+        },
+        {
+          name: 'list_time_entry_activities',
+          description: 'List available time entry activities',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
+        },
+        {
+          name: 'list_custom_fields',
+          description: 'List custom fields available in Redmine',
+          inputSchema: {
+            type: 'object',
+            properties: {},
           },
         },
       ],
@@ -170,6 +272,22 @@ class RedmineMCPServer {
             return await this.listProjects();
           case 'schedule_issues':
             return await this.scheduleIssues(request.params.arguments);
+          case 'log_time':
+            return await this.logTime(request.params.arguments);
+          case 'upload_attachment':
+            return await this.uploadAttachment(request.params.arguments);
+          case 'create_wiki_page':
+            return await this.createWikiPage(request.params.arguments);
+          case 'update_wiki_page':
+            return await this.updateWikiPage(request.params.arguments);
+          case 'get_wiki_page':
+            return await this.getWikiPage(request.params.arguments);
+          case 'list_users':
+            return await this.listUsers(request.params.arguments);
+          case 'list_time_entry_activities':
+            return await this.listTimeEntryActivities();
+          case 'list_custom_fields':
+            return await this.listCustomFields();
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -187,7 +305,7 @@ class RedmineMCPServer {
   }
 
   private async createIssue(args: any) {
-    const issue: RedmineIssue = {
+    const issue: any = {
       project_id: args.project_id,
       tracker_id: args.tracker_id || 2,
       subject: args.subject,
@@ -196,6 +314,8 @@ class RedmineMCPServer {
       estimated_hours: args.estimated_hours,
       parent_issue_id: args.parent_issue_id,
     };
+    
+    if (args.custom_fields) issue.custom_fields = args.custom_fields;
 
     const response = await this.redmine.post('/issues.json', { issue });
     const created = response.data.issue;
@@ -218,9 +338,11 @@ class RedmineMCPServer {
     if (args.status_id) issue.status_id = args.status_id;
     if (args.priority_id) issue.priority_id = args.priority_id;
     if (args.assigned_to_id) issue.assigned_to_id = args.assigned_to_id;
+    if (args.done_ratio !== undefined) issue.done_ratio = args.done_ratio;
     if (args.start_date) issue.start_date = args.start_date;
     if (args.due_date) issue.due_date = args.due_date;
     if (args.notes) issue.notes = args.notes;
+    if (args.custom_fields) issue.custom_fields = args.custom_fields;
 
     await this.redmine.put(`/issues/${args.issue_id}.json`, { issue });
 
@@ -303,8 +425,9 @@ ${issue.description || 'No description'}
   }
 
   private async scheduleIssues(args: any) {
-    const hoursPerDay = args.hours_per_day || 6;
-    const skipWeekends = args.skip_weekends !== false;
+    const weekdayHours = args.weekday_hours || 1.5;
+    const weekendHours = args.weekend_hours || 3;
+    const skipSundays = args.skip_sundays || false;
     
     // Get all issues to schedule with their estimates
     const issueDetails = await Promise.all(
@@ -316,16 +439,26 @@ ${issue.description || 'No description'}
     // Calculate start date
     let currentDate = args.start_date 
       ? new Date(args.start_date) 
-      : this.getNextWorkday(new Date());
+      : this.getNextWorkday(new Date(), skipSundays);
     
     const scheduled: any[] = [];
     
     for (const issue of issues) {
-      const estimatedHours = issue.estimated_hours || 4; // default 4h if not set
-      const daysNeeded = Math.ceil(estimatedHours / hoursPerDay);
-      
+      const estimatedHours = issue.estimated_hours || 4;
+      let remainingHours = estimatedHours;
       const startDate = this.formatDate(currentDate);
-      const dueDate = this.formatDate(this.addWorkdays(currentDate, daysNeeded - 1, skipWeekends));
+      
+      // Allocate hours across days based on capacity
+      while (remainingHours > 0) {
+        const dayCapacity = this.getDayCapacity(currentDate, weekdayHours, weekendHours, skipSundays);
+        remainingHours -= dayCapacity;
+        
+        if (remainingHours > 0) {
+          currentDate = this.getNextWorkday(currentDate, skipSundays);
+        }
+      }
+      
+      const dueDate = this.formatDate(currentDate);
       
       // Update issue with dates
       await this.redmine.put(`/issues/${issue.id}.json`, {
@@ -343,8 +476,8 @@ ${issue.description || 'No description'}
         estimated_hours: estimatedHours,
       });
       
-      // Move to next available date (day after due date)
-      currentDate = this.addWorkdays(currentDate, daysNeeded, skipWeekends);
+      // Move to next available date
+      currentDate = this.getNextWorkday(currentDate, skipSundays);
     }
     
     const summary = scheduled
@@ -355,41 +488,228 @@ ${issue.description || 'No description'}
       content: [
         {
           type: 'text',
-          text: `✅ Scheduled ${scheduled.length} issues:\n\n${summary}`,
+          text: `✅ Scheduled ${scheduled.length} issues:\n\n${summary}\n\nCapacity: ${weekdayHours}h weekdays, ${weekendHours}h weekends`,
         },
       ],
     };
   }
   
-  private getNextWorkday(date: Date): Date {
+  private getNextWorkday(date: Date, skipSundays: boolean): Date {
     const next = new Date(date);
     next.setDate(next.getDate() + 1);
     
-    // Skip weekends
-    while (next.getDay() === 0 || next.getDay() === 6) {
+    // Skip Sundays if requested
+    if (skipSundays && next.getDay() === 0) {
       next.setDate(next.getDate() + 1);
     }
     
     return next;
   }
   
-  private addWorkdays(date: Date, days: number, skipWeekends: boolean): Date {
-    const result = new Date(date);
-    let added = 0;
+  private getDayCapacity(date: Date, weekdayHours: number, weekendHours: number, skipSundays: boolean): number {
+    const day = date.getDay();
     
-    while (added < days) {
-      result.setDate(result.getDate() + 1);
-      
-      if (!skipWeekends || (result.getDay() !== 0 && result.getDay() !== 6)) {
-        added++;
-      }
+    // Sunday
+    if (day === 0) {
+      return skipSundays ? 0 : weekendHours;
     }
     
-    return result;
+    // Saturday
+    if (day === 6) {
+      return weekendHours;
+    }
+    
+    // Monday-Friday
+    return weekdayHours;
   }
   
   private formatDate(date: Date): string {
     return date.toISOString().split('T')[0];
+  }
+
+  private async logTime(args: any) {
+    const timeEntry: any = {
+      issue_id: args.issue_id,
+      hours: args.hours,
+      comments: args.comments || '',
+      spent_on: args.spent_on || this.formatDate(new Date()),
+    };
+    
+    // Resolve activity by name if provided
+    if (args.activity_name && !args.activity_id) {
+      const response = await this.redmine.get('/enumerations/time_entry_activities.json');
+      const activities = response.data.time_entry_activities;
+      const activity = activities.find((a: any) => 
+        a.name.toLowerCase() === args.activity_name.toLowerCase()
+      );
+      if (activity) {
+        timeEntry.activity_id = activity.id;
+      }
+    } else if (args.activity_id) {
+      timeEntry.activity_id = args.activity_id;
+    }
+
+    await this.redmine.post('/time_entries.json', { time_entry: timeEntry });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Logged ${args.hours}h on issue #${args.issue_id}`,
+        },
+      ],
+    };
+  }
+
+  private async uploadAttachment(args: any) {
+    const fileContent = readFileSync(args.file_path);
+    const fileName = basename(args.file_path);
+    
+    // Upload file
+    const uploadResponse = await this.redmine.post('/uploads.json', fileContent, {
+      headers: {
+        'Content-Type': 'application/octet-stream',
+      },
+    });
+    
+    const token = uploadResponse.data.upload.token;
+    
+    // Attach to issue
+    await this.redmine.put(`/issues/${args.issue_id}.json`, {
+      issue: {
+        uploads: [
+          {
+            token,
+            filename: fileName,
+            description: args.description || '',
+          },
+        ],
+      },
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Uploaded ${fileName} to issue #${args.issue_id}`,
+        },
+      ],
+    };
+  }
+
+  private async createWikiPage(args: any) {
+    const wikiPage: any = {
+      text: args.text,
+    };
+    
+    if (args.comments) wikiPage.comments = args.comments;
+
+    await this.redmine.put(`/projects/${args.project_id}/wiki/${args.title}.json`, {
+      wiki_page: wikiPage,
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Created wiki page "${args.title}"\nURL: ${this.config.url}/projects/${args.project_id}/wiki/${args.title}`,
+        },
+      ],
+    };
+  }
+
+  private async updateWikiPage(args: any) {
+    const wikiPage: any = {
+      text: args.text,
+    };
+    
+    if (args.comments) wikiPage.comments = args.comments;
+
+    await this.redmine.put(`/projects/${args.project_id}/wiki/${args.title}.json`, {
+      wiki_page: wikiPage,
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Updated wiki page "${args.title}"`,
+        },
+      ],
+    };
+  }
+
+  private async getWikiPage(args: any) {
+    const response = await this.redmine.get(`/projects/${args.project_id}/wiki/${args.title}.json`);
+    const page = response.data.wiki_page;
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `# ${page.title}\n\n${page.text}\n\n---\nVersion: ${page.version} | Updated: ${page.updated_on}`,
+        },
+      ],
+    };
+  }
+
+  private async listUsers(args: any) {
+    const params: any = {
+      limit: args.limit || 100,
+    };
+    if (args.name) params.name = args.name;
+
+    const response = await this.redmine.get('/users.json', { params });
+    const users = response.data.users;
+
+    const text = users
+      .map((u: any) => `ID ${u.id}: ${u.firstname} ${u.lastname} (${u.login})${u.mail ? ' - ' + u.mail : ''}`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Found ${users.length} users:\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  private async listTimeEntryActivities() {
+    const response = await this.redmine.get('/enumerations/time_entry_activities.json');
+    const activities = response.data.time_entry_activities;
+
+    const text = activities
+      .map((a: any) => `ID ${a.id}: ${a.name}${a.is_default ? ' (default)' : ''}`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Available activities:\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  private async listCustomFields() {
+    const response = await this.redmine.get('/custom_fields.json');
+    const fields = response.data.custom_fields;
+
+    const text = fields
+      .map((f: any) => `ID ${f.id}: ${f.name} (${f.field_format})${f.is_required ? ' *required' : ''}`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Available custom fields:\n\n${text}`,
+        },
+      ],
+    };
   }
 
   async run() {

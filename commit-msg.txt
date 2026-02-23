@@ -1,0 +1,9 @@
+Add custom fields support, user listing, time entry activities, and done_ratio
+
+- Add custom_fields parameter to create_issue and update_issue
+- Add list_custom_fields tool to discover available custom fields
+- Add list_users tool to find user IDs for assignment
+- Add list_time_entry_activities tool
+- Add done_ratio field to update_issue for % complete
+- Support activity_name in log_time (auto-resolves to ID)
+- Resolve issues #4 and #5
