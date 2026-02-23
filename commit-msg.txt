@@ -1,6 +1,6 @@
-Add time tracking reporting tool (issue #36)
+Add get_version tool (issue #37)
 
-- get_time_entries: View time entries with filters
-- Supports filtering by issue, project, user, date range
-- Shows total hours and detailed breakdown
+- get_version: Get detailed version/milestone information
+- Shows version name, status, project, description, due date
 - alwaysAllow for easy access
+- Completes version management feature set

@@ -362,6 +362,18 @@ class RedmineMCPServer {
           },
         },
         {
+          name: 'get_version',
+          description: 'Get version details with associated issues',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              version_id: { type: 'number', description: 'Version ID' },
+            },
+            required: ['version_id'],
+          },
+          alwaysAllow: true,
+        },
+        {
           name: 'create_project',
           description: 'Create a new project',
           inputSchema: {
@@ -533,6 +545,8 @@ class RedmineMCPServer {
             return await this.createVersion(request.params.arguments);
           case 'update_version':
             return await this.updateVersion(request.params.arguments);
+          case 'get_version':
+            return await this.getVersion(request.params.arguments);
           case 'create_project':
             return await this.createProject(request.params.arguments);
           case 'update_project':
@@ -1115,6 +1129,30 @@ ${issue.description || 'No description'}
         {
           type: 'text',
           text: `✅ Updated version #${args.version_id}`,
+        },
+      ],
+    };
+  }
+
+  private async getVersion(args: any) {
+    const response = await this.redmine.get(`/versions/${args.version_id}.json`);
+    const version = response.data.version;
+
+    const text = `
+Version #${version.id}: ${version.name}
+Status: ${version.status}
+Project: ${version.project.name}
+${version.description ? `Description: ${version.description}` : ''}
+${version.due_date ? `Due date: ${version.due_date}` : ''}
+Created: ${version.created_on}
+Updated: ${version.updated_on}
+    `.trim();
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text,
         },
       ],
     };
