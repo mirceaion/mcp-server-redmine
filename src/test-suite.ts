@@ -168,6 +168,36 @@ async function runTests() {
     await redmine.get(`/projects/${testProjectId}/memberships.json`);
   });
 
+  await test('Get version details', async () => {
+    await redmine.get(`/versions/${testVersionId}.json`);
+  });
+
+  await test('List issue statuses', async () => {
+    await redmine.get('/issue_statuses.json');
+  });
+
+  await test('List trackers', async () => {
+    await redmine.get('/trackers.json');
+  });
+
+  await test('List issue priorities', async () => {
+    await redmine.get('/enumerations/issue_priorities.json');
+  });
+
+  await test('Get time entries', async () => {
+    await redmine.get('/time_entries.json', { params: { issue_id: testIssueIds[0] } });
+  });
+
+  await test('Add watcher', async () => {
+    await redmine.post(`/issues/${testIssueIds[0]}/watchers.json`, {
+      user_id: testUserId,
+    });
+  });
+
+  await test('Remove watcher', async () => {
+    await redmine.delete(`/issues/${testIssueIds[0]}/watchers/${testUserId}.json`);
+  });
+
   console.log(`\n✅ All tests passed! Created ${testIssueIds.length} issues in project #${testProjectId}`);
 }
 

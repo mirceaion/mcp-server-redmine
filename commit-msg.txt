@@ -1,7 +1,10 @@
-Update PROJECT_SUMMARY with all new tools
+Update test suite with new tools
 
-- Document all 30+ tools implemented
-- Update feature list with 9 major categories
-- Add environment variable documentation
-- Update test suite information
-- Add v1.1.0 changelog with all features
+- Add get_version test
+- Add list_issue_statuses test
+- Add list_trackers test
+- Add list_issue_priorities test
+- Add get_time_entries test
+- Add add_watcher test
+- Add remove_watcher test
+- Now tests all major functionality

@@ -114,6 +114,7 @@ mcp-server-redmine/
 ├── README.md                 # Full documentation
 ├── QUICKSTART.md             # Quick setup guide
 ├── TEST_SUITE.md             # Test suite documentation
+├── PROJECT_SUMMARY.md        # This file
 ├── mcp-config.example.json   # Example configuration
 └── .gitignore                # Git ignore rules
 ```
@@ -194,29 +195,83 @@ Convert design documents directly into Redmine issues:
 ## Configuration
 
 ### Environment Variables
+
+**Linux/macOS:**
 ```bash
-REDMINE_URL=https://your-redmine.com
-REDMINE_API_KEY=your-api-key-here
+export REDMINE_URL="https://your-redmine.com"
+export REDMINE_API_KEY="your-api-key-here"
 
 # Optional defaults
-REDMINE_DEFAULT_ASSIGNEE_ID=6
-REDMINE_DEFAULT_TIME_HOURS=1
-REDMINE_DEFAULT_TRACKER_ID=2
-REDMINE_DEFAULT_PRIORITY_ID=2
-REDMINE_DEFAULT_ISSUES_LIMIT=25
-REDMINE_DEFAULT_USERS_LIMIT=100
-REDMINE_DEFAULT_WEEKDAY_HOURS=1.5
-REDMINE_DEFAULT_WEEKEND_HOURS=3
-REDMINE_DEFAULT_SKIP_SUNDAYS=false
+export REDMINE_DEFAULT_ASSIGNEE_ID=6
+export REDMINE_DEFAULT_TIME_HOURS=1
+export REDMINE_DEFAULT_TRACKER_ID=2
+export REDMINE_DEFAULT_PRIORITY_ID=2
+export REDMINE_DEFAULT_ISSUES_LIMIT=25
+export REDMINE_DEFAULT_USERS_LIMIT=100
+export REDMINE_DEFAULT_WEEKDAY_HOURS=1.5
+export REDMINE_DEFAULT_WEEKEND_HOURS=3
+export REDMINE_DEFAULT_SKIP_SUNDAYS=false
+```
+
+**Windows PowerShell:**
+```powershell
+$env:REDMINE_URL="http://192.168.11.65:3000"
+$env:REDMINE_API_KEY="your-api-key-here"
+
+# Optional defaults
+$env:REDMINE_DEFAULT_ASSIGNEE_ID=6
+$env:REDMINE_DEFAULT_TIME_HOURS=1
+$env:REDMINE_DEFAULT_TRACKER_ID=2
+$env:REDMINE_DEFAULT_PRIORITY_ID=2
+$env:REDMINE_DEFAULT_ISSUES_LIMIT=25
+$env:REDMINE_DEFAULT_USERS_LIMIT=100
+$env:REDMINE_DEFAULT_WEEKDAY_HOURS=1.5
+$env:REDMINE_DEFAULT_WEEKEND_HOURS=3
+$env:REDMINE_DEFAULT_SKIP_SUNDAYS="false"
+```
+
+**Windows CMD:**
+```cmd
+set REDMINE_URL=http://192.168.11.65:3000
+set REDMINE_API_KEY=your-api-key-here
+
+REM Optional defaults
+set REDMINE_DEFAULT_ASSIGNEE_ID=6
+set REDMINE_DEFAULT_TIME_HOURS=1
+set REDMINE_DEFAULT_TRACKER_ID=2
+set REDMINE_DEFAULT_PRIORITY_ID=2
+set REDMINE_DEFAULT_ISSUES_LIMIT=25
+set REDMINE_DEFAULT_USERS_LIMIT=100
+set REDMINE_DEFAULT_WEEKDAY_HOURS=1.5
+set REDMINE_DEFAULT_WEEKEND_HOURS=3
+set REDMINE_DEFAULT_SKIP_SUNDAYS=false
 ```
 
 ### Amazon Q Integration
+
+**Windows:**
 ```json
 {
   "mcpServers": {
     "redmine": {
       "command": "node",
       "args": ["g:/Gitea/mcp-server-redmine/build/index.js"],
+      "env": {
+        "REDMINE_URL": "http://192.168.11.65:3000",
+        "REDMINE_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
+```
+
+**Linux/macOS:**
+```json
+{
+  "mcpServers": {
+    "redmine": {
+      "command": "node",
+      "args": ["/home/user/mcp-server-redmine/build/index.js"],
       "env": {
         "REDMINE_URL": "https://your-redmine.com",
         "REDMINE_API_KEY": "your-api-key-here"
@@ -225,6 +280,10 @@ REDMINE_DEFAULT_SKIP_SUNDAYS=false
   }
 }
 ```
+
+**Configuration Location:**
+- Windows: `%USERPROFILE%\.aws\amazonq\mcp.json`
+- Linux/macOS: `~/.aws/amazonq/mcp.json`
 
 ## Benefits
 
@@ -280,9 +339,25 @@ Reduce context switching and manual data entry.
 ## Testing
 
 ### Test Connection
+
+**Linux/macOS:**
 ```bash
 export REDMINE_URL="https://your-redmine.com"
 export REDMINE_API_KEY="your-key"
+npm test
+```
+
+**Windows PowerShell:**
+```powershell
+$env:REDMINE_URL="http://192.168.11.65:3000"
+$env:REDMINE_API_KEY="your-key"
+npm test
+```
+
+**Windows CMD:**
+```cmd
+set REDMINE_URL=http://192.168.11.65:3000
+set REDMINE_API_KEY=your-key
 npm test
 ```
 
