@@ -427,6 +427,23 @@ class RedmineMCPServer {
             required: ['project_id', 'user_id', 'role_ids'],
           },
         },
+        {
+          name: 'bulk_update_issues',
+          description: 'Update multiple issues in a single operation',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              issue_ids: { type: 'array', items: { type: 'number' }, description: 'Issue IDs to update' },
+              tracker_id: { type: 'number', description: 'Tracker to set' },
+              status_id: { type: 'number', description: 'Status to set' },
+              priority_id: { type: 'number', description: 'Priority to set' },
+              assigned_to_id: { type: 'number', description: 'User ID to assign' },
+              fixed_version_id: { type: 'number', description: 'Version/milestone to set' },
+              notes: { type: 'string', description: 'Comment to add to all issues' },
+            },
+            required: ['issue_ids'],
+          },
+        },
       ],
     }));
 
@@ -483,6 +500,8 @@ class RedmineMCPServer {
             return await this.listProjectMemberships(request.params.arguments);
           case 'add_project_member':
             return await this.addProjectMember(request.params.arguments);
+          case 'bulk_update_issues':
+            return await this.bulkUpdateIssues(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -1165,6 +1184,43 @@ ${project.description || 'No description'}
         {
           type: 'text',
           text: `✅ Added user #${args.user_id} to project #${args.project_id}`,
+        },
+      ],
+    };
+  }
+
+  private async bulkUpdateIssues(args: any) {
+    const issue: any = {};
+    if (args.tracker_id) issue.tracker_id = args.tracker_id;
+    if (args.status_id) issue.status_id = args.status_id;
+    if (args.priority_id) issue.priority_id = args.priority_id;
+    if (args.assigned_to_id) issue.assigned_to_id = args.assigned_to_id;
+    if (args.fixed_version_id) issue.fixed_version_id = args.fixed_version_id;
+    if (args.notes) issue.notes = args.notes;
+
+    const results: any[] = [];
+    const errors: any[] = [];
+
+    for (const issueId of args.issue_ids) {
+      try {
+        await this.redmine.put(`/issues/${issueId}.json`, { issue });
+        results.push(issueId);
+      } catch (error: any) {
+        errors.push({ id: issueId, error: error.message });
+      }
+    }
+
+    const summary = [
+      `✅ Updated ${results.length} of ${args.issue_ids.length} issues`,
+      results.length > 0 ? `\nSuccessful: ${results.join(', ')}` : '',
+      errors.length > 0 ? `\nFailed: ${errors.map(e => `#${e.id} (${e.error})`).join(', ')}` : '',
+    ].filter(Boolean).join('');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: summary,
         },
       ],
     };

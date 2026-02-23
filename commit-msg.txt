@@ -1,7 +1,6 @@
-Add project management tools (issue #40)
+Add bulk update issues tool (issue #9)
 
-- create_project: Create new projects with identifier and settings
-- update_project: Update project name, description, visibility
-- get_project: Get detailed project information
-- list_project_memberships: List project members and roles
-- add_project_member: Add users to projects with roles
+- bulk_update_issues: Update multiple issues in single operation
+- Supports tracker, status, priority, assignee, version, notes
+- Error handling for partial failures
+- Returns summary of successful and failed updates
