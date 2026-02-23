@@ -471,6 +471,22 @@ class RedmineMCPServer {
           },
           alwaysAllow: true,
         },
+        {
+          name: 'get_time_entries',
+          description: 'Get time entries with filters',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              issue_id: { type: 'number', description: 'Filter by issue ID' },
+              project_id: { type: 'number', description: 'Filter by project ID' },
+              user_id: { type: 'number', description: 'Filter by user ID' },
+              from: { type: 'string', description: 'Start date (YYYY-MM-DD)' },
+              to: { type: 'string', description: 'End date (YYYY-MM-DD)' },
+              limit: { type: 'number', description: 'Max results (default 25)' },
+            },
+          },
+          alwaysAllow: true,
+        },
       ],
     }));
 
@@ -535,6 +551,8 @@ class RedmineMCPServer {
             return await this.listTrackers();
           case 'list_issue_priorities':
             return await this.listIssuePriorities();
+          case 'get_time_entries':
+            return await this.getTimeEntries(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -1308,6 +1326,45 @@ ${project.description || 'No description'}
         {
           type: 'text',
           text: `Available priorities:\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  private async getTimeEntries(args: any) {
+    const params: any = {
+      limit: args.limit || 25,
+    };
+    if (args.issue_id) params.issue_id = args.issue_id;
+    if (args.project_id) params.project_id = args.project_id;
+    if (args.user_id) params.user_id = args.user_id;
+    if (args.from) params.from = args.from;
+    if (args.to) params.to = args.to;
+
+    const response = await this.redmine.get('/time_entries.json', { params });
+    const entries = response.data.time_entries;
+
+    if (entries.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'No time entries found',
+          },
+        ],
+      };
+    }
+
+    const totalHours = entries.reduce((sum: number, e: any) => sum + e.hours, 0);
+    const text = entries
+      .map((e: any) => `${e.spent_on} - ${e.hours}h - ${e.user.name} - Issue #${e.issue.id}: ${e.comments || '(no comment)'}${e.activity ? ` [${e.activity.name}]` : ''}`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Found ${entries.length} time entries (${totalHours}h total):\n\n${text}`,
         },
       ],
     };

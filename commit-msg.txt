@@ -1,6 +1,6 @@
-Add metadata listing tools (issue #35)
+Add time tracking reporting tool (issue #36)
 
-- list_issue_statuses: Get available statuses with IDs
-- list_trackers: Get available trackers (Bug, Feature, Support)
-- list_issue_priorities: Get available priorities with IDs
-- All tools have alwaysAllow for easy discovery
+- get_time_entries: View time entries with filters
+- Supports filtering by issue, project, user, date range
+- Shows total hours and detailed breakdown
+- alwaysAllow for easy access
