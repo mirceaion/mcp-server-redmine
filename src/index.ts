@@ -499,6 +499,30 @@ class RedmineMCPServer {
           },
           alwaysAllow: true,
         },
+        {
+          name: 'add_watcher',
+          description: 'Add user to watch an issue',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              issue_id: { type: 'number', description: 'Issue ID' },
+              user_id: { type: 'number', description: 'User ID to add as watcher' },
+            },
+            required: ['issue_id', 'user_id'],
+          },
+        },
+        {
+          name: 'remove_watcher',
+          description: 'Remove watcher from an issue',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              issue_id: { type: 'number', description: 'Issue ID' },
+              user_id: { type: 'number', description: 'User ID to remove as watcher' },
+            },
+            required: ['issue_id', 'user_id'],
+          },
+        },
       ],
     }));
 
@@ -567,6 +591,10 @@ class RedmineMCPServer {
             return await this.listIssuePriorities();
           case 'get_time_entries':
             return await this.getTimeEntries(request.params.arguments);
+          case 'add_watcher':
+            return await this.addWatcher(request.params.arguments);
+          case 'remove_watcher':
+            return await this.removeWatcher(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -1403,6 +1431,34 @@ ${project.description || 'No description'}
         {
           type: 'text',
           text: `Found ${entries.length} time entries (${totalHours}h total):\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  private async addWatcher(args: any) {
+    await this.redmine.post(`/issues/${args.issue_id}/watchers.json`, {
+      user_id: args.user_id,
+    });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Added user #${args.user_id} as watcher to issue #${args.issue_id}`,
+        },
+      ],
+    };
+  }
+
+  private async removeWatcher(args: any) {
+    await this.redmine.delete(`/issues/${args.issue_id}/watchers/${args.user_id}.json`);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Removed user #${args.user_id} as watcher from issue #${args.issue_id}`,
         },
       ],
     };

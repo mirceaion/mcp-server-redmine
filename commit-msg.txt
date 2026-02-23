@@ -1,6 +1,6 @@
-Add get_version tool (issue #37)
+Add watcher management tools (issue #38)
 
-- get_version: Get detailed version/milestone information
-- Shows version name, status, project, description, due date
-- alwaysAllow for easy access
-- Completes version management feature set
+- add_watcher: Add user to watch an issue for notifications
+- remove_watcher: Remove watcher from an issue
+- Completes issue relationship and watcher feature set
+- Relation tools were already implemented in issue #7
