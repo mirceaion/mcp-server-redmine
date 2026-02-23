@@ -1,4 +1,6 @@
-Fix test suite log time test
+Add metadata listing tools (issue #35)
 
-- Add activity_id to time entry (required by Redmine)
-- Get activity_id from list_time_entry_activities response
+- list_issue_statuses: Get available statuses with IDs
+- list_trackers: Get available trackers (Bug, Feature, Support)
+- list_issue_priorities: Get available priorities with IDs
+- All tools have alwaysAllow for easy discovery

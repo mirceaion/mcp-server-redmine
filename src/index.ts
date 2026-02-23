@@ -444,6 +444,33 @@ class RedmineMCPServer {
             required: ['issue_ids'],
           },
         },
+        {
+          name: 'list_issue_statuses',
+          description: 'List available issue statuses',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
+          alwaysAllow: true,
+        },
+        {
+          name: 'list_trackers',
+          description: 'List available trackers (Bug, Feature, Support, etc.)',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
+          alwaysAllow: true,
+        },
+        {
+          name: 'list_issue_priorities',
+          description: 'List available issue priorities',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
+          alwaysAllow: true,
+        },
       ],
     }));
 
@@ -502,6 +529,12 @@ class RedmineMCPServer {
             return await this.addProjectMember(request.params.arguments);
           case 'bulk_update_issues':
             return await this.bulkUpdateIssues(request.params.arguments);
+          case 'list_issue_statuses':
+            return await this.listIssueStatuses();
+          case 'list_trackers':
+            return await this.listTrackers();
+          case 'list_issue_priorities':
+            return await this.listIssuePriorities();
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -1221,6 +1254,60 @@ ${project.description || 'No description'}
         {
           type: 'text',
           text: summary,
+        },
+      ],
+    };
+  }
+
+  private async listIssueStatuses() {
+    const response = await this.redmine.get('/issue_statuses.json');
+    const statuses = response.data.issue_statuses;
+
+    const text = statuses
+      .map((s: any) => `ID ${s.id}: ${s.name}${s.is_closed ? ' (closed)' : ''}${s.is_default ? ' (default)' : ''}`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Available statuses:\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  private async listTrackers() {
+    const response = await this.redmine.get('/trackers.json');
+    const trackers = response.data.trackers;
+
+    const text = trackers
+      .map((t: any) => `ID ${t.id}: ${t.name}${t.is_default ? ' (default)' : ''}`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Available trackers:\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  private async listIssuePriorities() {
+    const response = await this.redmine.get('/enumerations/issue_priorities.json');
+    const priorities = response.data.issue_priorities;
+
+    const text = priorities
+      .map((p: any) => `ID ${p.id}: ${p.name}${p.is_default ? ' (default)' : ''}`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Available priorities:\n\n${text}`,
         },
       ],
     };
