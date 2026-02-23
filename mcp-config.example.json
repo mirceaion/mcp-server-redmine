@@ -2,7 +2,7 @@
   "mcpServers": {
     "redmine": {
       "command": "node",
-      "args": ["g:/Gitea/mcp-server-redmine/build/index.js"],
+      "args": ["/absolute/path/to/mcp-server-redmine/build/index.js"],
       "env": {
         "REDMINE_URL": "https://your-redmine.com",
         "REDMINE_API_KEY": "your-api-key-here"

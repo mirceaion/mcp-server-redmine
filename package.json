@@ -1,7 +1,7 @@
 {
   "name": "mcp-server-redmine",
-  "version": "1.0.0",
-  "description": "MCP server for Redmine project management integration",
+  "version": "1.1.0",
+  "description": "Model Context Protocol server for Redmine project management - create issues, track time, manage projects through AI conversations",
   "type": "module",
   "main": "build/index.js",
   "bin": {
@@ -14,9 +14,33 @@
     "test": "node build/test-connection.js",
     "test:suite": "node build/test-suite.js"
   },
-  "keywords": ["mcp", "redmine", "project-management"],
-  "author": "",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "redmine",
+    "project-management",
+    "issue-tracking",
+    "task-management",
+    "ai",
+    "amazon-q",
+    "claude",
+    "time-tracking",
+    "agile",
+    "scrum"
+  ],
+  "author": "Mircea Ion <mircea_ion@hotmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mirceaion/mcp-server-redmine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mirceaion/mcp-server-redmine/issues"
+  },
+  "homepage": "https://github.com/mirceaion/mcp-server-redmine#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^0.5.0",
     "axios": "^1.6.0"
