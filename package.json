@@ -11,7 +11,8 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "prepare": "npm run build",
-    "test": "node build/test-connection.js"
+    "test": "node build/test-connection.js",
+    "test:suite": "node build/test-suite.js"
   },
   "keywords": ["mcp", "redmine", "project-management"],
   "author": "",

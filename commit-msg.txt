@@ -1,6 +1,7 @@
-Add bulk update issues tool (issue #9)
+Add comprehensive test suite
 
-- bulk_update_issues: Update multiple issues in single operation
-- Supports tracker, status, priority, assignee, version, notes
-- Error handling for partial failures
-- Returns summary of successful and failed updates
+- test-suite.ts: Automated tests for all MCP functionality
+- Tests project, version, issue, relation, time, wiki operations
+- Auto-cleanup of test data
+- npm run test:suite command
+- TEST_SUITE.md documentation
