@@ -1,7 +1,4 @@
-Add comprehensive test suite
+Fix test suite compilation
 
-- test-suite.ts: Automated tests for all MCP functionality
-- Tests project, version, issue, relation, time, wiki operations
-- Auto-cleanup of test data
-- npm run test:suite command
-- TEST_SUITE.md documentation
+- Move test-suite.ts to src/ directory for TypeScript compilation
+- Test suite now builds correctly with npm run build
