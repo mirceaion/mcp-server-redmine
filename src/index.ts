@@ -13,6 +13,8 @@ import { basename } from 'path';
 interface RedmineConfig {
   url: string;
   apiKey: string;
+  defaultAssigneeId?: number;
+  defaultTimeHours?: number;
 }
 
 interface RedmineIssue {
@@ -37,6 +39,8 @@ class RedmineMCPServer {
     this.config = {
       url: process.env.REDMINE_URL || '',
       apiKey: process.env.REDMINE_API_KEY || '',
+      defaultAssigneeId: process.env.REDMINE_DEFAULT_ASSIGNEE_ID ? parseInt(process.env.REDMINE_DEFAULT_ASSIGNEE_ID) : undefined,
+      defaultTimeHours: process.env.REDMINE_DEFAULT_TIME_HOURS ? parseFloat(process.env.REDMINE_DEFAULT_TIME_HOURS) : undefined,
     };
 
     if (!this.config.url || !this.config.apiKey) {
@@ -165,13 +169,13 @@ class RedmineMCPServer {
             type: 'object',
             properties: {
               issue_id: { type: 'number', description: 'Issue ID' },
-              hours: { type: 'number', description: 'Hours spent' },
+              hours: { type: 'number', description: 'Hours spent (defaults to 1 if not specified)' },
               activity_id: { type: 'number', description: 'Activity ID (optional, will use default if not specified)' },
               activity_name: { type: 'string', description: 'Activity name (e.g., "Development", "Design") - alternative to activity_id' },
               comments: { type: 'string', description: 'Description of work done' },
               spent_on: { type: 'string', description: 'Date (YYYY-MM-DD), defaults to today' },
             },
-            required: ['issue_id', 'hours'],
+            required: ['issue_id'],
           },
         },
         {
@@ -314,6 +318,13 @@ class RedmineMCPServer {
       estimated_hours: args.estimated_hours,
       parent_issue_id: args.parent_issue_id,
     };
+    
+    // Apply default assignee if configured and not explicitly set
+    if (!args.assigned_to_id && this.config.defaultAssigneeId) {
+      issue.assigned_to_id = this.config.defaultAssigneeId;
+    } else if (args.assigned_to_id) {
+      issue.assigned_to_id = args.assigned_to_id;
+    }
     
     if (args.custom_fields) issue.custom_fields = args.custom_fields;
 
@@ -530,7 +541,7 @@ ${issue.description || 'No description'}
   private async logTime(args: any) {
     const timeEntry: any = {
       issue_id: args.issue_id,
-      hours: args.hours,
+      hours: args.hours || this.config.defaultTimeHours || 1,
       comments: args.comments || '',
       spent_on: args.spent_on || this.formatDate(new Date()),
     };
@@ -555,7 +566,7 @@ ${issue.description || 'No description'}
       content: [
         {
           type: 'text',
-          text: `✅ Logged ${args.hours}h on issue #${args.issue_id}`,
+          text: `✅ Logged ${timeEntry.hours}h on issue #${args.issue_id}`,
         },
       ],
     };

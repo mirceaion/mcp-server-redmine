@@ -1,9 +1,6 @@
-Add custom fields support, user listing, time entry activities, and done_ratio
+Make default assignee and time hours configurable via environment variables
 
-- Add custom_fields parameter to create_issue and update_issue
-- Add list_custom_fields tool to discover available custom fields
-- Add list_users tool to find user IDs for assignment
-- Add list_time_entry_activities tool
-- Add done_ratio field to update_issue for % complete
-- Support activity_name in log_time (auto-resolves to ID)
-- Resolve issues #4 and #5
+- Add REDMINE_DEFAULT_ASSIGNEE_ID env var for default issue assignee
+- Add REDMINE_DEFAULT_TIME_HOURS env var for default time logging
+- Both are optional and won't affect behavior if not set
+- Makes the MCP server publishable without hardcoded values
