@@ -1,12 +1,13 @@
-Rename and update QUICKSTART to REDMINE_QUICKSTART
+Rename and update SETUP_GUIDE to REDMINE_SETUP_GUIDE
 
-- Rename QUICKSTART.md to REDMINE_QUICKSTART.md for clarity
-- Add installation step
+- Rename SETUP_GUIDE.md to REDMINE_SETUP_GUIDE.md for clarity
+- Add installation step with npm commands
+- Add user ID discovery section
 - Add Windows/Linux/macOS specific examples
 - Add optional environment variables section
-- Expand common commands with new tools
-- Add version/sprint, time tracking, watchers, wiki examples
-- Add metadata discovery examples
-- Expand troubleshooting with more error codes
-- Add testing section with platform-specific commands
-- Update next steps with all documentation files
+- Add comprehensive test suite step
+- Add 422 error troubleshooting
+- Add SSL/certificate error handling
+- Expand tools reference with all 30+ tools
+- Add more example commands for all features
+- Update documentation references
