@@ -108,6 +108,7 @@ class RedmineMCPServer {
               done_ratio: { type: 'number', description: 'Percentage complete (0-100)' },
               start_date: { type: 'string', description: 'Start date (YYYY-MM-DD)' },
               due_date: { type: 'string', description: 'Due date (YYYY-MM-DD)' },
+              fixed_version_id: { type: 'number', description: 'Version/milestone ID to assign' },
               notes: { type: 'string', description: 'Comment to add' },
               custom_fields: { type: 'array', description: 'Custom fields array [{id: 1, value: "text"}]' },
             },
@@ -294,6 +295,49 @@ class RedmineMCPServer {
             required: ['relation_id'],
           },
         },
+        {
+          name: 'list_versions',
+          description: 'List versions/milestones for a project',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'number', description: 'Project ID' },
+            },
+            required: ['project_id'],
+          },
+        },
+        {
+          name: 'create_version',
+          description: 'Create a new version/milestone',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'number', description: 'Project ID' },
+              name: { type: 'string', description: 'Version name' },
+              description: { type: 'string', description: 'Version description' },
+              status: { type: 'string', description: 'Status: open, locked, closed (default: open)' },
+              due_date: { type: 'string', description: 'Due date (YYYY-MM-DD)' },
+              sharing: { type: 'string', description: 'Sharing: none, descendants, hierarchy, tree, system (default: none)' },
+            },
+            required: ['project_id', 'name'],
+          },
+        },
+        {
+          name: 'update_version',
+          description: 'Update an existing version/milestone',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              version_id: { type: 'number', description: 'Version ID' },
+              name: { type: 'string', description: 'Version name' },
+              description: { type: 'string', description: 'Version description' },
+              status: { type: 'string', description: 'Status: open, locked, closed' },
+              due_date: { type: 'string', description: 'Due date (YYYY-MM-DD)' },
+              sharing: { type: 'string', description: 'Sharing: none, descendants, hierarchy, tree, system' },
+            },
+            required: ['version_id'],
+          },
+        },
       ],
     }));
 
@@ -334,6 +378,12 @@ class RedmineMCPServer {
             return await this.getIssueRelations(request.params.arguments);
           case 'delete_issue_relation':
             return await this.deleteIssueRelation(request.params.arguments);
+          case 'list_versions':
+            return await this.listVersions(request.params.arguments);
+          case 'create_version':
+            return await this.createVersion(request.params.arguments);
+          case 'update_version':
+            return await this.updateVersion(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -394,6 +444,7 @@ class RedmineMCPServer {
     if (args.done_ratio !== undefined) issue.done_ratio = args.done_ratio;
     if (args.start_date) issue.start_date = args.start_date;
     if (args.due_date) issue.due_date = args.due_date;
+    if (args.fixed_version_id) issue.fixed_version_id = args.fixed_version_id;
     if (args.notes) issue.notes = args.notes;
     if (args.custom_fields) issue.custom_fields = args.custom_fields;
 
@@ -822,6 +873,79 @@ ${issue.description || 'No description'}
         {
           type: 'text',
           text: `✅ Deleted relation #${args.relation_id}`,
+        },
+      ],
+    };
+  }
+
+  private async listVersions(args: any) {
+    const response = await this.redmine.get(`/projects/${args.project_id}/versions.json`);
+    const versions = response.data.versions;
+
+    if (versions.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `No versions found for project #${args.project_id}`,
+          },
+        ],
+      };
+    }
+
+    const text = versions
+      .map((v: any) => `ID ${v.id}: ${v.name} [${v.status}]${v.due_date ? ` - Due: ${v.due_date}` : ''}`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Versions for project #${args.project_id}:\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  private async createVersion(args: any) {
+    const version: any = {
+      name: args.name,
+      status: args.status || 'open',
+    };
+    
+    if (args.description) version.description = args.description;
+    if (args.due_date) version.due_date = args.due_date;
+    if (args.sharing) version.sharing = args.sharing;
+
+    const response = await this.redmine.post(`/projects/${args.project_id}/versions.json`, { version });
+    const created = response.data.version;
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Created version #${created.id}: ${created.name}`,
+        },
+      ],
+    };
+  }
+
+  private async updateVersion(args: any) {
+    const version: any = {};
+    
+    if (args.name) version.name = args.name;
+    if (args.description) version.description = args.description;
+    if (args.status) version.status = args.status;
+    if (args.due_date) version.due_date = args.due_date;
+    if (args.sharing) version.sharing = args.sharing;
+
+    await this.redmine.put(`/versions/${args.version_id}.json`, { version });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Updated version #${args.version_id}`,
         },
       ],
     };

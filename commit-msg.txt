@@ -1,8 +1,8 @@
-Add issue relationship management tools
+Add version/milestone management tools
 
-- Add create_issue_relation tool for linking issues
-- Add get_issue_relations tool to view relationships
-- Add delete_issue_relation tool to remove links
-- Support relation types: relates, duplicates, blocks, precedes, follows, copied_to, copied_from
-- Support delay parameter for precedes/follows relations
-- Resolves issue #7
+- Add list_versions tool to view project versions
+- Add create_version tool to create milestones
+- Add update_version tool to modify version details
+- Add fixed_version_id parameter to update_issue for assigning issues to versions
+- Support version properties: name, description, status, due_date, sharing
+- Resolves issue #8
