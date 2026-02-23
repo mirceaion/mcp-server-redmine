@@ -135,12 +135,16 @@ async function runTests() {
   });
 
   await test('List time entry activities', async () => {
-    await redmine.get('/enumerations/time_entry_activities.json');
+    const res = await redmine.get('/enumerations/time_entry_activities.json');
+    const activities = res.data.time_entry_activities;
+    if (activities.length > 0) {
+      testUserId = activities[0].id; // Reuse testUserId for activity_id
+    }
   });
 
   await test('Log time', async () => {
     await redmine.post('/time_entries.json', {
-      time_entry: { issue_id: testIssueIds[0], hours: 2, comments: 'Test work' },
+      time_entry: { issue_id: testIssueIds[0], hours: 2, comments: 'Test work', activity_id: testUserId },
     });
   });
 

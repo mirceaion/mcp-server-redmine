@@ -1,4 +1,4 @@
-Fix test suite compilation
+Fix test suite log time test
 
-- Move test-suite.ts to src/ directory for TypeScript compilation
-- Test suite now builds correctly with npm run build
+- Add activity_id to time entry (required by Redmine)
+- Get activity_id from list_time_entry_activities response
