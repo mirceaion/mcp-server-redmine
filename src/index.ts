@@ -258,6 +258,42 @@ class RedmineMCPServer {
             properties: {},
           },
         },
+        {
+          name: 'create_issue_relation',
+          description: 'Create a relationship between two issues',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              issue_id: { type: 'number', description: 'Issue ID' },
+              issue_to_id: { type: 'number', description: 'Related issue ID' },
+              relation_type: { type: 'string', description: 'Relation type: relates, duplicates, blocks, precedes, follows, copied_to, copied_from' },
+              delay: { type: 'number', description: 'Delay in days (for precedes/follows)' },
+            },
+            required: ['issue_id', 'issue_to_id', 'relation_type'],
+          },
+        },
+        {
+          name: 'get_issue_relations',
+          description: 'Get all relationships for an issue',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              issue_id: { type: 'number', description: 'Issue ID' },
+            },
+            required: ['issue_id'],
+          },
+        },
+        {
+          name: 'delete_issue_relation',
+          description: 'Delete a relationship between issues',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              relation_id: { type: 'number', description: 'Relation ID to delete' },
+            },
+            required: ['relation_id'],
+          },
+        },
       ],
     }));
 
@@ -292,6 +328,12 @@ class RedmineMCPServer {
             return await this.listTimeEntryActivities();
           case 'list_custom_fields':
             return await this.listCustomFields();
+          case 'create_issue_relation':
+            return await this.createIssueRelation(request.params.arguments);
+          case 'get_issue_relations':
+            return await this.getIssueRelations(request.params.arguments);
+          case 'delete_issue_relation':
+            return await this.deleteIssueRelation(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -718,6 +760,68 @@ ${issue.description || 'No description'}
         {
           type: 'text',
           text: `Available custom fields:\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  private async createIssueRelation(args: any) {
+    const relation: any = {
+      issue_to_id: args.issue_to_id,
+      relation_type: args.relation_type,
+    };
+    
+    if (args.delay) relation.delay = args.delay;
+
+    await this.redmine.post(`/issues/${args.issue_id}/relations.json`, { relation });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Created ${args.relation_type} relation between issue #${args.issue_id} and #${args.issue_to_id}`,
+        },
+      ],
+    };
+  }
+
+  private async getIssueRelations(args: any) {
+    const response = await this.redmine.get(`/issues/${args.issue_id}/relations.json`);
+    const relations = response.data.relations;
+
+    if (relations.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `No relations found for issue #${args.issue_id}`,
+          },
+        ],
+      };
+    }
+
+    const text = relations
+      .map((r: any) => `ID ${r.id}: Issue #${r.issue_id} ${r.relation_type} Issue #${r.issue_to_id}${r.delay ? ` (delay: ${r.delay} days)` : ''}`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Relations for issue #${args.issue_id}:\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  private async deleteIssueRelation(args: any) {
+    await this.redmine.delete(`/relations/${args.relation_id}.json`);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Deleted relation #${args.relation_id}`,
         },
       ],
     };
