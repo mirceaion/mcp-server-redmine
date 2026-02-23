@@ -15,6 +15,13 @@ interface RedmineConfig {
   apiKey: string;
   defaultAssigneeId?: number;
   defaultTimeHours?: number;
+  defaultTrackerId: number;
+  defaultPriorityId: number;
+  defaultIssuesLimit: number;
+  defaultUsersLimit: number;
+  defaultWeekdayHours: number;
+  defaultWeekendHours: number;
+  defaultSkipSundays: boolean;
 }
 
 interface RedmineIssue {
@@ -41,6 +48,13 @@ class RedmineMCPServer {
       apiKey: process.env.REDMINE_API_KEY || '',
       defaultAssigneeId: process.env.REDMINE_DEFAULT_ASSIGNEE_ID ? parseInt(process.env.REDMINE_DEFAULT_ASSIGNEE_ID) : undefined,
       defaultTimeHours: process.env.REDMINE_DEFAULT_TIME_HOURS ? parseFloat(process.env.REDMINE_DEFAULT_TIME_HOURS) : undefined,
+      defaultTrackerId: process.env.REDMINE_DEFAULT_TRACKER_ID ? parseInt(process.env.REDMINE_DEFAULT_TRACKER_ID) : 2,
+      defaultPriorityId: process.env.REDMINE_DEFAULT_PRIORITY_ID ? parseInt(process.env.REDMINE_DEFAULT_PRIORITY_ID) : 2,
+      defaultIssuesLimit: process.env.REDMINE_DEFAULT_ISSUES_LIMIT ? parseInt(process.env.REDMINE_DEFAULT_ISSUES_LIMIT) : 25,
+      defaultUsersLimit: process.env.REDMINE_DEFAULT_USERS_LIMIT ? parseInt(process.env.REDMINE_DEFAULT_USERS_LIMIT) : 100,
+      defaultWeekdayHours: process.env.REDMINE_DEFAULT_WEEKDAY_HOURS ? parseFloat(process.env.REDMINE_DEFAULT_WEEKDAY_HOURS) : 1.5,
+      defaultWeekendHours: process.env.REDMINE_DEFAULT_WEEKEND_HOURS ? parseFloat(process.env.REDMINE_DEFAULT_WEEKEND_HOURS) : 3,
+      defaultSkipSundays: process.env.REDMINE_DEFAULT_SKIP_SUNDAYS === 'true',
     };
 
     if (!this.config.url || !this.config.apiKey) {
@@ -127,6 +141,7 @@ class RedmineMCPServer {
             },
             required: ['project_id'],
           },
+          alwaysAllow: true,
         },
         {
           name: 'get_issue',
@@ -138,6 +153,7 @@ class RedmineMCPServer {
             },
             required: ['issue_id'],
           },
+          alwaysAllow: true,
         },
         {
           name: 'list_projects',
@@ -146,6 +162,7 @@ class RedmineMCPServer {
             type: 'object',
             properties: {},
           },
+          alwaysAllow: true,
         },
         {
           name: 'schedule_issues',
@@ -231,6 +248,7 @@ class RedmineMCPServer {
             },
             required: ['project_id', 'title'],
           },
+          alwaysAllow: true,
         },
         {
           name: 'list_users',
@@ -242,6 +260,7 @@ class RedmineMCPServer {
               limit: { type: 'number', description: 'Max results (default 100)' },
             },
           },
+          alwaysAllow: true,
         },
         {
           name: 'list_time_entry_activities',
@@ -250,6 +269,7 @@ class RedmineMCPServer {
             type: 'object',
             properties: {},
           },
+          alwaysAllow: true,
         },
         {
           name: 'list_custom_fields',
@@ -258,6 +278,7 @@ class RedmineMCPServer {
             type: 'object',
             properties: {},
           },
+          alwaysAllow: true,
         },
         {
           name: 'create_issue_relation',
@@ -283,6 +304,7 @@ class RedmineMCPServer {
             },
             required: ['issue_id'],
           },
+          alwaysAllow: true,
         },
         {
           name: 'delete_issue_relation',
@@ -305,6 +327,7 @@ class RedmineMCPServer {
             },
             required: ['project_id'],
           },
+          alwaysAllow: true,
         },
         {
           name: 'create_version',
@@ -336,6 +359,72 @@ class RedmineMCPServer {
               sharing: { type: 'string', description: 'Sharing: none, descendants, hierarchy, tree, system' },
             },
             required: ['version_id'],
+          },
+        },
+        {
+          name: 'create_project',
+          description: 'Create a new project',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Project name' },
+              identifier: { type: 'string', description: 'Project identifier (lowercase, no spaces)' },
+              description: { type: 'string', description: 'Project description' },
+              is_public: { type: 'boolean', description: 'Is project public (default: true)' },
+              parent_id: { type: 'number', description: 'Parent project ID for subprojects' },
+            },
+            required: ['name', 'identifier'],
+          },
+        },
+        {
+          name: 'update_project',
+          description: 'Update project settings',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'number', description: 'Project ID' },
+              name: { type: 'string', description: 'Project name' },
+              description: { type: 'string', description: 'Project description' },
+              is_public: { type: 'boolean', description: 'Is project public' },
+            },
+            required: ['project_id'],
+          },
+        },
+        {
+          name: 'get_project',
+          description: 'Get detailed project information',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'number', description: 'Project ID' },
+            },
+            required: ['project_id'],
+          },
+          alwaysAllow: true,
+        },
+        {
+          name: 'list_project_memberships',
+          description: 'Get project members and their roles',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'number', description: 'Project ID' },
+            },
+            required: ['project_id'],
+          },
+          alwaysAllow: true,
+        },
+        {
+          name: 'add_project_member',
+          description: 'Add user to project with role',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'number', description: 'Project ID' },
+              user_id: { type: 'number', description: 'User ID to add' },
+              role_ids: { type: 'array', items: { type: 'number' }, description: 'Role IDs to assign' },
+            },
+            required: ['project_id', 'user_id', 'role_ids'],
           },
         },
       ],
@@ -384,6 +473,16 @@ class RedmineMCPServer {
             return await this.createVersion(request.params.arguments);
           case 'update_version':
             return await this.updateVersion(request.params.arguments);
+          case 'create_project':
+            return await this.createProject(request.params.arguments);
+          case 'update_project':
+            return await this.updateProject(request.params.arguments);
+          case 'get_project':
+            return await this.getProject(request.params.arguments);
+          case 'list_project_memberships':
+            return await this.listProjectMemberships(request.params.arguments);
+          case 'add_project_member':
+            return await this.addProjectMember(request.params.arguments);
           default:
             throw new Error(`Unknown tool: ${request.params.name}`);
         }
@@ -403,10 +502,10 @@ class RedmineMCPServer {
   private async createIssue(args: any) {
     const issue: any = {
       project_id: args.project_id,
-      tracker_id: args.tracker_id || 2,
+      tracker_id: args.tracker_id || this.config.defaultTrackerId,
       subject: args.subject,
       description: args.description,
-      priority_id: args.priority_id || 2,
+      priority_id: args.priority_id || this.config.defaultPriorityId,
       estimated_hours: args.estimated_hours,
       parent_issue_id: args.parent_issue_id,
     };
@@ -463,7 +562,7 @@ class RedmineMCPServer {
   private async listIssues(args: any) {
     const params: any = {
       project_id: args.project_id,
-      limit: args.limit || 25,
+      limit: args.limit || this.config.defaultIssuesLimit,
     };
     if (args.status_id) params.status_id = args.status_id;
 
@@ -529,9 +628,9 @@ ${issue.description || 'No description'}
   }
 
   private async scheduleIssues(args: any) {
-    const weekdayHours = args.weekday_hours || 1.5;
-    const weekendHours = args.weekend_hours || 3;
-    const skipSundays = args.skip_sundays || false;
+    const weekdayHours = args.weekday_hours || this.config.defaultWeekdayHours;
+    const weekendHours = args.weekend_hours || this.config.defaultWeekendHours;
+    const skipSundays = args.skip_sundays !== undefined ? args.skip_sundays : this.config.defaultSkipSundays;
     
     // Get all issues to schedule with their estimates
     const issueDetails = await Promise.all(
@@ -759,7 +858,7 @@ ${issue.description || 'No description'}
 
   private async listUsers(args: any) {
     const params: any = {
-      limit: args.limit || 100,
+      limit: args.limit || this.config.defaultUsersLimit,
     };
     if (args.name) params.name = args.name;
 
@@ -946,6 +1045,126 @@ ${issue.description || 'No description'}
         {
           type: 'text',
           text: `✅ Updated version #${args.version_id}`,
+        },
+      ],
+    };
+  }
+
+  private async createProject(args: any) {
+    const project: any = {
+      name: args.name,
+      identifier: args.identifier,
+      is_public: args.is_public !== undefined ? args.is_public : true,
+    };
+    
+    if (args.description) project.description = args.description;
+    if (args.parent_id) project.parent_id = args.parent_id;
+
+    const response = await this.redmine.post('/projects.json', { project });
+    const created = response.data.project;
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Created project #${created.id}: ${created.name}\nIdentifier: ${created.identifier}\nURL: ${this.config.url}/projects/${created.identifier}`,
+        },
+      ],
+    };
+  }
+
+  private async updateProject(args: any) {
+    const project: any = {};
+    
+    if (args.name) project.name = args.name;
+    if (args.description) project.description = args.description;
+    if (args.is_public !== undefined) project.is_public = args.is_public;
+
+    await this.redmine.put(`/projects/${args.project_id}.json`, { project });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Updated project #${args.project_id}`,
+        },
+      ],
+    };
+  }
+
+  private async getProject(args: any) {
+    const response = await this.redmine.get(`/projects/${args.project_id}.json`);
+    const project = response.data.project;
+
+    const text = `
+Project #${project.id}: ${project.name}
+Identifier: ${project.identifier}
+Status: ${project.status}
+Public: ${project.is_public ? 'Yes' : 'No'}
+Created: ${project.created_on}
+Updated: ${project.updated_on}
+${project.parent ? `Parent: ${project.parent.name}` : ''}
+
+Description:
+${project.description || 'No description'}
+    `.trim();
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text,
+        },
+      ],
+    };
+  }
+
+  private async listProjectMemberships(args: any) {
+    const response = await this.redmine.get(`/projects/${args.project_id}/memberships.json`);
+    const memberships = response.data.memberships;
+
+    if (memberships.length === 0) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `No members found for project #${args.project_id}`,
+          },
+        ],
+      };
+    }
+
+    const text = memberships
+      .map((m: any) => {
+        const user = m.user ? `${m.user.name}` : m.group ? `${m.group.name} (group)` : 'Unknown';
+        const roles = m.roles.map((r: any) => r.name).join(', ');
+        return `ID ${m.id}: ${user} - ${roles}`;
+      })
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Members for project #${args.project_id}:\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  private async addProjectMember(args: any) {
+    const membership: any = {
+      user_id: args.user_id,
+      role_ids: args.role_ids,
+    };
+
+    await this.redmine.post(`/projects/${args.project_id}/memberships.json`, { membership });
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Added user #${args.user_id} to project #${args.project_id}`,
         },
       ],
     };

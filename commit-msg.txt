@@ -1,8 +1,7 @@
-Add version/milestone management tools
+Add project management tools (issue #40)
 
-- Add list_versions tool to view project versions
-- Add create_version tool to create milestones
-- Add update_version tool to modify version details
-- Add fixed_version_id parameter to update_issue for assigning issues to versions
-- Support version properties: name, description, status, due_date, sharing
-- Resolves issue #8
+- create_project: Create new projects with identifier and settings
+- update_project: Update project name, description, visibility
+- get_project: Get detailed project information
+- list_project_memberships: List project members and roles
+- add_project_member: Add users to projects with roles
