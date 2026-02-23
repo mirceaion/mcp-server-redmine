@@ -31,28 +31,63 @@ A **Model Context Protocol (MCP) server** that enables AI assistants (like Amazo
 
 ## Key Features
 
-### 1. Create Issues
-- Full metadata support (priority, estimates, descriptions)
-- Parent/child relationships for subtasks
-- Markdown descriptions
-- Automatic URL generation
-
-### 2. Update Issues
-- Change status (New → In Progress → Resolved → Closed)
-- Update priority and assignments
-- Add comments/notes
-- Modify descriptions
-
-### 3. Query Issues
-- List by project and status
-- Filter open/closed issues
+### 1. Issue Management
+- Create issues with full metadata (priority, estimates, descriptions, custom fields)
+- Update issues (status, priority, assignments, dates, versions)
+- List and filter issues by project, status, assignee
 - Get detailed issue information
-- Search capabilities
+- Bulk update multiple issues
+- Parent/child relationships for subtasks
+- Issue relations (blocks, relates, duplicates, precedes, follows)
 
-### 4. Project Management
+### 2. Project Management
 - List all accessible projects
-- Get project IDs for operations
-- Multi-project support
+- Create new projects with identifiers
+- Update project settings
+- Get detailed project information
+- Manage project memberships and roles
+- Add users to projects
+
+### 3. Version/Milestone Management
+- List versions/milestones for projects
+- Create new versions with due dates
+- Update version details and status
+- Get version details with associated issues
+- Track release planning and sprints
+
+### 4. Time Tracking
+- Log time entries on issues
+- Support for activity types (Development, Design, etc.)
+- Get time entries with filters (issue, project, user, date range)
+- Track hours spent and generate reports
+
+### 5. Wiki Management
+- Create wiki pages with textile/markdown
+- Update existing wiki pages
+- Get wiki page content
+- Version comments for changes
+
+### 6. Metadata Discovery
+- List available issue statuses
+- List available trackers (Bug, Feature, Support)
+- List issue priorities
+- List custom fields
+- List time entry activities
+- List users with filtering
+
+### 7. Watcher Management
+- Add watchers to issues for notifications
+- Remove watchers from issues
+- Manage team awareness
+
+### 8. File Attachments
+- Upload files to issues
+- Add descriptions to attachments
+
+### 9. Scheduling
+- Auto-schedule issues based on workload
+- Configure weekday/weekend hours
+- Set start and due dates automatically
 
 ## Technology Stack
 
@@ -68,14 +103,17 @@ A **Model Context Protocol (MCP) server** that enables AI assistants (like Amazo
 mcp-server-redmine/
 ├── src/
 │   ├── index.ts              # Main MCP server implementation
-│   └── test-connection.ts    # Connection test utility
+│   ├── test-connection.ts    # Connection test utility
+│   └── test-suite.ts         # Comprehensive test battery
 ├── build/                    # Compiled JavaScript (generated)
 │   ├── index.js
-│   └── test-connection.js
+│   ├── test-connection.js
+│   └── test-suite.js
 ├── package.json              # Dependencies and scripts
 ├── tsconfig.json             # TypeScript configuration
 ├── README.md                 # Full documentation
 ├── QUICKSTART.md             # Quick setup guide
+├── TEST_SUITE.md             # Test suite documentation
 ├── mcp-config.example.json   # Example configuration
 └── .gitignore                # Git ignore rules
 ```
@@ -159,6 +197,17 @@ Convert design documents directly into Redmine issues:
 ```bash
 REDMINE_URL=https://your-redmine.com
 REDMINE_API_KEY=your-api-key-here
+
+# Optional defaults
+REDMINE_DEFAULT_ASSIGNEE_ID=6
+REDMINE_DEFAULT_TIME_HOURS=1
+REDMINE_DEFAULT_TRACKER_ID=2
+REDMINE_DEFAULT_PRIORITY_ID=2
+REDMINE_DEFAULT_ISSUES_LIMIT=25
+REDMINE_DEFAULT_USERS_LIMIT=100
+REDMINE_DEFAULT_WEEKDAY_HOURS=1.5
+REDMINE_DEFAULT_WEEKEND_HOURS=3
+REDMINE_DEFAULT_SKIP_SUNDAYS=false
 ```
 
 ### Amazon Q Integration
@@ -197,23 +246,19 @@ Reduce context switching and manual data entry.
 ## Limitations & Future Enhancements
 
 ### Current Limitations
-- No file attachment support
-- No custom field support
-- No time entry logging
-- No wiki page access
-- No user management
+- No advanced search/filtering
+- No email notifications configuration
+- No role management
+- No workflow customization
 
 ### Potential Enhancements
-- [ ] Time entry logging
-- [ ] Custom field support
-- [ ] File attachments
-- [ ] Wiki integration
-- [ ] User/group management
-- [ ] Version/milestone management
+- [ ] Advanced issue filtering and search
+- [ ] Email notification settings
+- [ ] Role and permission management
+- [ ] Workflow customization
 - [ ] Gantt chart generation
 - [ ] Burndown chart data
-- [ ] Issue relationships (blocks, relates to)
-- [ ] Watchers management
+- [ ] Dashboard widgets
 
 ## Security Considerations
 
@@ -241,14 +286,13 @@ export REDMINE_API_KEY="your-key"
 npm test
 ```
 
-### Manual Testing
+### Comprehensive Test Suite
 ```bash
-# Build
 npm run build
-
-# Run server (for debugging)
-node build/index.js
+npm run test:suite
 ```
+
+The test suite creates a temporary project, tests all functionality, and cleans up automatically.
 
 ## Deployment
 
@@ -308,8 +352,19 @@ This is a minimal implementation. Contributions welcome for:
 ## Changelog
 
 ### v1.0.0 (2026-02-22)
-- Initial release
-- Basic CRUD operations for issues
-- Project listing
-- Status and priority management
-- Parent/child task relationships
+- Initial release with basic CRUD operations
+
+### v1.1.0 (2026-02-23)
+- Added time logging with activity support
+- Added custom fields support
+- Added file attachments
+- Added issue relations (blocks, relates, duplicates, etc.)
+- Added version/milestone management
+- Added project management tools
+- Added bulk update operations
+- Added metadata listing (statuses, trackers, priorities)
+- Added time tracking reports
+- Added watcher management
+- Added configurable defaults via environment variables
+- Added comprehensive test suite
+- Added alwaysAllow flag for read-only operations

@@ -1,6 +1,7 @@
-Add watcher management tools (issue #38)
+Update PROJECT_SUMMARY with all new tools
 
-- add_watcher: Add user to watch an issue for notifications
-- remove_watcher: Remove watcher from an issue
-- Completes issue relationship and watcher feature set
-- Relation tools were already implemented in issue #7
+- Document all 30+ tools implemented
+- Update feature list with 9 major categories
+- Add environment variable documentation
+- Update test suite information
+- Add v1.1.0 changelog with all features
