@@ -215,11 +215,11 @@ export REDMINE_DEFAULT_SKIP_SUNDAYS=false
 
 **Windows PowerShell:**
 ```powershell
-$env:REDMINE_URL="http://192.168.11.65:3000"
+$env:REDMINE_URL="https://your-redmine.com"
 $env:REDMINE_API_KEY="your-api-key-here"
 
 # Optional defaults
-$env:REDMINE_DEFAULT_ASSIGNEE_ID=6
+$env:REDMINE_DEFAULT_ASSIGNEE_ID=1
 $env:REDMINE_DEFAULT_TIME_HOURS=1
 $env:REDMINE_DEFAULT_TRACKER_ID=2
 $env:REDMINE_DEFAULT_PRIORITY_ID=2
@@ -232,11 +232,11 @@ $env:REDMINE_DEFAULT_SKIP_SUNDAYS="false"
 
 **Windows CMD:**
 ```cmd
-set REDMINE_URL=http://192.168.11.65:3000
+set REDMINE_URL=https://your-redmine.com
 set REDMINE_API_KEY=your-api-key-here
 
 REM Optional defaults
-set REDMINE_DEFAULT_ASSIGNEE_ID=6
+set REDMINE_DEFAULT_ASSIGNEE_ID=1
 set REDMINE_DEFAULT_TIME_HOURS=1
 set REDMINE_DEFAULT_TRACKER_ID=2
 set REDMINE_DEFAULT_PRIORITY_ID=2
@@ -255,9 +255,9 @@ set REDMINE_DEFAULT_SKIP_SUNDAYS=false
   "mcpServers": {
     "redmine": {
       "command": "node",
-      "args": ["g:/Gitea/mcp-server-redmine/build/index.js"],
+      "args": ["C:/path/to/mcp-server-redmine/build/index.js"],
       "env": {
-        "REDMINE_URL": "http://192.168.11.65:3000",
+        "REDMINE_URL": "https://your-redmine.com",
         "REDMINE_API_KEY": "your-api-key-here"
       }
     }
@@ -349,14 +349,14 @@ npm test
 
 **Windows PowerShell:**
 ```powershell
-$env:REDMINE_URL="http://192.168.11.65:3000"
+$env:REDMINE_URL="https://your-redmine.com"
 $env:REDMINE_API_KEY="your-key"
 npm test
 ```
 
 **Windows CMD:**
 ```cmd
-set REDMINE_URL=http://192.168.11.65:3000
+set REDMINE_URL=https://your-redmine.com
 set REDMINE_API_KEY=your-key
 npm test
 ```

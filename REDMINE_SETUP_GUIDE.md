@@ -126,12 +126,10 @@ You can use this for `REDMINE_DEFAULT_ASSIGNEE_ID`.
   "mcpServers": {
     "redmine": {
       "command": "node",
-      "args": ["g:/Gitea/mcp-server-redmine/build/index.js"],
+      "args": ["C:/path/to/mcp-server-redmine/build/index.js"],
       "env": {
-        "REDMINE_URL": "http://192.168.11.65:3000",
-        "REDMINE_API_KEY": "paste-your-40-char-key-here",
-        "REDMINE_DEFAULT_ASSIGNEE_ID": "6",
-        "REDMINE_DEFAULT_TIME_HOURS": "1"
+        "REDMINE_URL": "https://your-redmine.com",
+        "REDMINE_API_KEY": "paste-your-40-char-key-here"
       }
     }
   }
@@ -163,9 +161,8 @@ You can use this for `REDMINE_DEFAULT_ASSIGNEE_ID`.
 **Optional Environment Variables:**
 ```json
 "env": {
-  "REDMINE_URL": "http://192.168.11.65:3000",
+  "REDMINE_URL": "https://your-redmine.com",
   "REDMINE_API_KEY": "your-key",
-  "REDMINE_DEFAULT_ASSIGNEE_ID": "6",
   "REDMINE_DEFAULT_TIME_HOURS": "1",
   "REDMINE_DEFAULT_TRACKER_ID": "2",
   "REDMINE_DEFAULT_PRIORITY_ID": "2",
@@ -180,15 +177,15 @@ You can use this for `REDMINE_DEFAULT_ASSIGNEE_ID`.
 
 ```bash
 # Windows Command Prompt
-set REDMINE_URL=http://192.168.11.65:3000
+set REDMINE_URL=https://your-redmine.com
 set REDMINE_API_KEY=your-key-here
-cd g:\Gitea\mcp-server-redmine
+cd C:\path\to\mcp-server-redmine
 npm test
 
 # Windows PowerShell
-$env:REDMINE_URL="http://192.168.11.65:3000"
+$env:REDMINE_URL="https://your-redmine.com"
 $env:REDMINE_API_KEY="your-key-here"
-cd g:\Gitea\mcp-server-redmine
+cd C:\path\to\mcp-server-redmine
 npm test
 
 # Mac/Linux
@@ -202,7 +199,7 @@ Expected output:
 ```
 Testing Redmine connection...
 
-URL: http://192.168.11.65:3000
+URL: https://your-redmine.com
 API Key: a1b2c3d4...
 
 ✅ Connection successful!
@@ -262,7 +259,7 @@ ID 3: Infrastructure (infra)
 
 ```bash
 # Windows PowerShell
-$env:REDMINE_URL="http://192.168.11.65:3000"
+$env:REDMINE_URL="https://your-redmine.com"
 $env:REDMINE_API_KEY="your-key"
 npm run test:suite
 
@@ -299,7 +296,7 @@ node --version
 
 **Solution**:
 ```bash
-cd g:\Gitea\mcp-server-redmine
+cd /path/to/mcp-server-redmine
 npm install
 npm run build
 ```
@@ -354,7 +351,7 @@ npm run build
 **Solution**:
 1. Use HTTP instead of HTTPS for local development
 2. The server already disables SSL verification for self-signed certs
-3. Example: `"REDMINE_URL": "http://192.168.11.65:3000"`
+3. Example: `"REDMINE_URL": "https://your-redmine.com"`
 
 ---
 
@@ -365,7 +362,7 @@ npm run build
 **Solution**:
 1. Verify path in config is absolute
 2. Use forward slashes `/` even on Windows
-3. Check file exists: `g:\Gitea\mcp-server-redmine\build\index.js`
+3. Check file exists in your installation directory
 4. Rebuild if needed: `npm run build`
 
 ---

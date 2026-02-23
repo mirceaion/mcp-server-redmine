@@ -64,11 +64,10 @@ npm run build
   "amazonq.mcp.servers": {
     "redmine": {
       "command": "node",
-      "args": ["g:/Gitea/mcp-server-redmine/build/index.js"],
+      "args": ["C:/path/to/mcp-server-redmine/build/index.js"],
       "env": {
-        "REDMINE_URL": "http://192.168.11.65:3000",
-        "REDMINE_API_KEY": "paste-your-key-here",
-        "REDMINE_DEFAULT_ASSIGNEE_ID": "6"
+        "REDMINE_URL": "https://your-redmine.com",
+        "REDMINE_API_KEY": "paste-your-key-here"
       }
     }
   }
@@ -102,9 +101,9 @@ Create/edit:
   "mcpServers": {
     "redmine": {
       "command": "node",
-      "args": ["g:/Gitea/mcp-server-redmine/build/index.js"],
+      "args": ["/path/to/mcp-server-redmine/build/index.js"],
       "env": {
-        "REDMINE_URL": "http://192.168.11.65:3000",
+        "REDMINE_URL": "https://your-redmine.com",
         "REDMINE_API_KEY": "paste-your-key-here"
       }
     }
@@ -118,9 +117,8 @@ Add these to customize defaults:
 
 ```json
 "env": {
-  "REDMINE_URL": "http://192.168.11.65:3000",
+  "REDMINE_URL": "https://your-redmine.com",
   "REDMINE_API_KEY": "your-key",
-  "REDMINE_DEFAULT_ASSIGNEE_ID": "6",
   "REDMINE_DEFAULT_TIME_HOURS": "1",
   "REDMINE_DEFAULT_TRACKER_ID": "2",
   "REDMINE_DEFAULT_PRIORITY_ID": "2"
@@ -276,7 +274,7 @@ Bulk update all issues in version 5 to status "Closed"
 **Quick Connection Test:**
 ```bash
 # Windows PowerShell
-$env:REDMINE_URL="http://192.168.11.65:3000"
+$env:REDMINE_URL="https://your-redmine.com"
 $env:REDMINE_API_KEY="your-key"
 npm test
 
