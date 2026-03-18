@@ -703,7 +703,9 @@ class RedmineMCPServer {
 Issue #${issue.id}: ${issue.subject}
 Status: ${issue.status.name}
 Priority: ${issue.priority.name}
+Done: ${issue.done_ratio}%
 Assigned to: ${issue.assigned_to?.name || 'Unassigned'}
+${issue.parent ? `Parent: #${issue.parent.id}` : ''}
 Created: ${issue.created_on}
 Updated: ${issue.updated_on}
 

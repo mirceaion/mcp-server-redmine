@@ -1,0 +1,24 @@
+{
+  "name": "mcp-server-redmine",
+  "vendor": "mirceaion",
+  "sourceUrl": "https://github.com/mirceaion/mcp-server-redmine",
+  "homepage": "https://github.com/mirceaion/mcp-server-redmine#readme",
+  "description": "Model Context Protocol server for Redmine project management - create issues, track time, manage projects through AI conversations",
+  "license": "MIT",
+  "runtime": "node",
+  "categories": [
+    "project-management",
+    "productivity"
+  ],
+  "config": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "mcp-server-redmine"
+    ],
+    "env": {
+      "REDMINE_URL": "https://your-redmine.com",
+      "REDMINE_API_KEY": "your-api-key-here"
+    }
+  }
+}
