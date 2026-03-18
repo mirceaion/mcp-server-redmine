@@ -699,9 +699,12 @@ class RedmineMCPServer {
     const response = await this.redmine.get(`/issues/${args.issue_id}.json`, { params: { include: 'children' } });
     const issue = response.data.issue;
 
-    const childrenText = issue.children?.length
-      ? `\nSubtasks:\n${issue.children.map((c: any) => `  #${c.id}: ${c.subject} [${c.status?.name ?? '?'}]`).join('\n')}`
-      : '';
+    let childrenText = '';
+    if (issue.children?.length) {
+      const childrenResponse = await this.redmine.get('/issues.json', { params: { parent_id: args.issue_id, limit: 100, status_id: '*' } });
+      const children = childrenResponse.data.issues;
+      childrenText = `\nSubtasks:\n${children.map((c: any) => `  #${c.id}: ${c.subject} [${c.status.name}] ${c.done_ratio}%`).join('\n')}`;
+    }
 
     const text = `
 Issue #${issue.id}: ${issue.subject}
