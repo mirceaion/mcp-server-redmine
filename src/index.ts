@@ -696,8 +696,12 @@ class RedmineMCPServer {
   }
 
   private async getIssue(args: any) {
-    const response = await this.redmine.get(`/issues/${args.issue_id}.json`);
+    const response = await this.redmine.get(`/issues/${args.issue_id}.json`, { params: { include: 'children' } });
     const issue = response.data.issue;
+
+    const childrenText = issue.children?.length
+      ? `\nSubtasks:\n${issue.children.map((c: any) => `  #${c.id}: ${c.subject} [${c.status?.name ?? '?'}]`).join('\n')}`
+      : '';
 
     const text = `
 Issue #${issue.id}: ${issue.subject}
@@ -707,7 +711,7 @@ Done: ${issue.done_ratio}%
 Assigned to: ${issue.assigned_to?.name || 'Unassigned'}
 ${issue.parent ? `Parent: #${issue.parent.id}` : ''}
 Created: ${issue.created_on}
-Updated: ${issue.updated_on}
+Updated: ${issue.updated_on}${childrenText}
 
 Description:
 ${issue.description || 'No description'}
