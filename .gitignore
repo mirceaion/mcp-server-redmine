@@ -4,3 +4,5 @@ build/
 .env
 .DS_Store
 commit-msg.txt
+commitsummary.tmp
+registry-submission.json

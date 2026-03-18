@@ -1,4 +1,0 @@
-fix: include subtasks (children) in get_issue output
-
-Previously patched in build/index.js only — now properly in src/index.ts.
-Uses ?include=children Redmine API param and renders each subtask with status.
