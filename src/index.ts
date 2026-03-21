@@ -125,6 +125,7 @@ class RedmineMCPServer {
               fixed_version_id: { type: 'number', description: 'Version/milestone ID to assign' },
               notes: { type: 'string', description: 'Comment to add' },
               custom_fields: { type: 'array', description: 'Custom fields array [{id: 1, value: "text"}]' },
+              parent_issue_id: { type: 'number', description: 'Parent issue ID for subtasks' },
             },
             required: ['issue_id'],
           },
@@ -658,8 +659,26 @@ class RedmineMCPServer {
     if (args.fixed_version_id) issue.fixed_version_id = args.fixed_version_id;
     if (args.notes) issue.notes = args.notes;
     if (args.custom_fields) issue.custom_fields = args.custom_fields;
+    if (args.parent_issue_id) issue.parent_issue_id = args.parent_issue_id;
 
     await this.redmine.put(`/issues/${args.issue_id}.json`, { issue });
+
+    // If a status change was requested, verify Redmine actually applied it.
+    // Redmine silently ignores status changes blocked by open subtasks and still returns HTTP 200.
+    if (args.status_id !== undefined) {
+      const verify = await this.redmine.get(`/issues/${args.issue_id}.json`);
+      const actualStatusId = verify.data?.issue?.status?.id;
+      if (actualStatusId !== args.status_id) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `⚠️ Issue #${args.issue_id} was NOT updated to status ${args.status_id} — Redmine rejected the change (actual status: ${actualStatusId}). This usually means the issue has open subtasks that must be closed first.`,
+            },
+          ],
+        };
+      }
+    }
 
     return {
       content: [
