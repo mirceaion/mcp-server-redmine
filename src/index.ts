@@ -113,6 +113,7 @@ class RedmineMCPServer {
             type: 'object',
             properties: {
               issue_id: { type: 'number', description: 'Issue ID to update' },
+              project_id: { type: 'number', description: 'Move issue to this project ID' },
               tracker_id: { type: 'number', description: 'Tracker (1=Bug, 2=Feature, 3=Support, etc.)' },
               subject: { type: 'string', description: 'New title' },
               description: { type: 'string', description: 'New description' },
@@ -647,6 +648,7 @@ class RedmineMCPServer {
 
   private async updateIssue(args: any) {
     const issue: any = {};
+    if (args.project_id) issue.project_id = args.project_id;
     if (args.tracker_id) issue.tracker_id = args.tracker_id;
     if (args.subject) issue.subject = args.subject;
     if (args.description) issue.description = args.description;
