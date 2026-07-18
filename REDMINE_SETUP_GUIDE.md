@@ -375,7 +375,7 @@ npm run build
 - `create_issue` - Create new issues
 - `update_issue` - Update existing issues
 - `list_issues` - List issues with filters
-- `get_issue` - Get detailed issue info
+- `get_issue` - Get detailed issue info (optional `include_journals` for comment history)
 - `bulk_update_issues` - Update multiple issues
 
 **Project Management:**

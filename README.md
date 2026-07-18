@@ -1,5 +1,10 @@
 # MCP Server for Redmine
 
+| Version | Date | Author | Summary |
+|---|---|---|---|
+| 1.0 | 2026-07-18 | Claude | Version table added retroactively; documents existing tool set |
+| 1.1 | 2026-07-18 | Claude | `get_issue`: new optional `include_journals` parameter (comment history) |
+
 Model Context Protocol (MCP) server for Redmine project management integration. Allows AI assistants to create, update, and query Redmine issues directly from conversations.
 
 ## Features
@@ -131,10 +136,11 @@ Get detailed information about a specific issue.
 
 **Parameters:**
 - `issue_id` (required): Issue ID
+- `include_journals`: Set to `true` to include the comment/note history (author, timestamp, text). Journal entries that only record field changes (status flips, done-ratio edits) are filtered out. Default `false` to keep the response small.
 
 **Example:**
 ```
-Get details of Redmine issue #123
+Get details of Redmine issue #123 including its comments
 ```
 
 ### list_projects
