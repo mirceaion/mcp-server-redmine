@@ -147,11 +147,12 @@ class RedmineMCPServer {
         },
         {
           name: 'get_issue',
-          description: 'Get details of a specific issue',
+          description: 'Get details of a specific issue. Set include_journals to also get the comment/note history.',
           inputSchema: {
             type: 'object',
             properties: {
               issue_id: { type: 'number', description: 'Issue ID' },
+              include_journals: { type: 'boolean', description: 'Include journal entries (comments/notes) in the output. Default false.' },
             },
             required: ['issue_id'],
           },
@@ -717,8 +718,19 @@ class RedmineMCPServer {
   }
 
   private async getIssue(args: any) {
-    const response = await this.redmine.get(`/issues/${args.issue_id}.json`, { params: { include: 'children' } });
+    const include = args.include_journals ? 'children,journals' : 'children';
+    const response = await this.redmine.get(`/issues/${args.issue_id}.json`, { params: { include } });
     const issue = response.data.issue;
+
+    let journalsText = '';
+    if (args.include_journals) {
+      const notes = (issue.journals || []).filter((j: any) => j.notes?.trim());
+      journalsText = notes.length
+        ? `\n\nComments (${notes.length}):\n${notes
+            .map((j: any) => `--- ${j.user?.name || 'Unknown'} @ ${j.created_on}\n${j.notes.trim()}`)
+            .join('\n')}`
+        : '\n\nComments: none';
+    }
 
     let childrenText = '';
     if (issue.children?.length) {
@@ -738,7 +750,7 @@ Created: ${issue.created_on}
 Updated: ${issue.updated_on}${childrenText}
 
 Description:
-${issue.description || 'No description'}
+${issue.description || 'No description'}${journalsText}
     `.trim();
 
     return {
