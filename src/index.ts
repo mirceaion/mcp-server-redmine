@@ -8,6 +8,7 @@ import {
 import axios, { AxiosInstance } from 'axios';
 import https from 'https';
 import { readFileSync } from 'fs';
+import { applyWikiPatch } from './wiki-patch.js';
 import { basename } from 'path';
 
 interface RedmineConfig {
@@ -214,30 +215,82 @@ class RedmineMCPServer {
         },
         {
           name: 'create_wiki_page',
-          description: 'Create a new wiki page',
+          description:
+            'Create a new wiki page. Supply the body either inline via `text` or from a file via `file_path` — exactly one of the two.',
           inputSchema: {
             type: 'object',
             properties: {
               project_id: { type: 'string', description: 'Project identifier (not ID)' },
               title: { type: 'string', description: 'Page title' },
-              text: { type: 'string', description: 'Page content (textile/markdown)' },
+              text: { type: 'string', description: 'Page content (textile/markdown). Mutually exclusive with file_path.' },
+              file_path: {
+                type: 'string',
+                description:
+                  'Absolute path to a UTF-8 file whose contents become the page body. Use this instead of `text` for large pages — it avoids passing the whole body through the model, and the bytes written are exactly the bytes on disk.',
+              },
               comments: { type: 'string', description: 'Version comment' },
             },
-            required: ['project_id', 'title', 'text'],
+            required: ['project_id', 'title'],
           },
         },
         {
           name: 'update_wiki_page',
-          description: 'Update an existing wiki page',
+          description:
+            'Update an existing wiki page. WARNING: this REPLACES the entire page body — it is not a patch. Prefer patch_wiki_page for incremental edits. Supply the body either inline via `text` or from a file via `file_path`.',
           inputSchema: {
             type: 'object',
             properties: {
               project_id: { type: 'string', description: 'Project identifier (not ID)' },
               title: { type: 'string', description: 'Page title' },
-              text: { type: 'string', description: 'Page content (textile/markdown)' },
+              text: { type: 'string', description: 'Full replacement page content. Mutually exclusive with file_path.' },
+              file_path: {
+                type: 'string',
+                description:
+                  'Absolute path to a UTF-8 file whose contents become the full replacement page body. Use this instead of `text` for large pages.',
+              },
               comments: { type: 'string', description: 'Version comment' },
             },
-            required: ['project_id', 'title', 'text'],
+            required: ['project_id', 'title'],
+          },
+        },
+        {
+          name: 'patch_wiki_page',
+          description:
+            'Edit part of a wiki page without resending the whole body. Fetches the current text, applies one change, and writes it back — so untouched content cannot be lost the way a full update_wiki_page overwrite can lose it. Modes: append, prepend, replace.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'string', description: 'Project identifier (not ID)' },
+              title: { type: 'string', description: 'Page title' },
+              mode: {
+                type: 'string',
+                enum: ['append', 'prepend', 'replace'],
+                description:
+                  'append: add `text` to the end. prepend: add `text` to the start. replace: substitute `find` with `text`.',
+              },
+              text: {
+                type: 'string',
+                description:
+                  'The text to append, prepend, or substitute in. For replace, an empty string deletes the matched text.',
+              },
+              find: {
+                type: 'string',
+                description:
+                  'replace mode only: the exact literal string to find. Not a regex. Must match expect_count times or the edit is refused.',
+              },
+              expect_count: {
+                type: 'number',
+                description:
+                  'replace mode only (default 1): how many occurrences of `find` are expected. The edit is refused if the real count differs — this is the guard that turns a silent no-op or an accidental mass-replace into an error.',
+              },
+              comments: { type: 'string', description: 'Version comment' },
+              check_version: {
+                type: 'boolean',
+                description:
+                  "Default true: send the version read during the fetch so Redmine refuses the write if someone else edited the page in between. Set false only to force through a known conflict.",
+              },
+            },
+            required: ['project_id', 'title', 'mode'],
           },
         },
         {
@@ -248,6 +301,11 @@ class RedmineMCPServer {
             properties: {
               project_id: { type: 'string', description: 'Project identifier (not ID)' },
               title: { type: 'string', description: 'Page title' },
+              raw: {
+                type: 'boolean',
+                description:
+                  'Default false. When true, return ONLY the page body, with no title heading and no version footer. Use this whenever the text will be read back and rewritten — the decorated default is not round-trip safe, since re-submitting it would embed the heading and footer into the page.',
+              },
             },
             required: ['project_id', 'title'],
           },
@@ -552,6 +610,8 @@ class RedmineMCPServer {
             return await this.createWikiPage(request.params.arguments);
           case 'update_wiki_page':
             return await this.updateWikiPage(request.params.arguments);
+          case 'patch_wiki_page':
+            return await this.patchWikiPage(request.params.arguments);
           case 'get_wiki_page':
             return await this.getWikiPage(request.params.arguments);
           case 'list_users':
@@ -954,43 +1014,143 @@ ${issue.description || 'No description'}${journalsText}
     };
   }
 
+  /**
+   * Resolves a wiki page body from either an inline `text` argument or a `file_path`.
+   *
+   * Exactly one must be supplied. Accepting both silently would make it ambiguous which
+   * one won, and accepting neither would blank the page — both are refused loudly instead,
+   * because the failure mode of a wiki write is losing content nobody notices is gone.
+   */
+  private resolveWikiText(args: any): string {
+    const hasText = typeof args.text === 'string';
+    const hasPath = typeof args.file_path === 'string' && args.file_path.length > 0;
+
+    if (hasText && hasPath) {
+      throw new Error('Provide either `text` or `file_path`, not both — which one wins would be ambiguous.');
+    }
+    if (!hasText && !hasPath) {
+      throw new Error('Provide the page body as either `text` or `file_path`.');
+    }
+
+    if (hasPath) {
+      try {
+        return readFileSync(args.file_path, 'utf-8');
+      } catch (error: any) {
+        throw new Error(`Could not read file_path "${args.file_path}": ${error.message}`);
+      }
+    }
+    return args.text;
+  }
+
+  /** Fetches a wiki page, returning its raw body and current version. */
+  private async fetchWikiPage(projectId: string, title: string): Promise<{ text: string; version: number }> {
+    const response = await this.redmine.get(`/projects/${projectId}/wiki/${title}.json`);
+    const page = response.data.wiki_page;
+    return { text: page.text ?? '', version: page.version };
+  }
+
   private async createWikiPage(args: any) {
-    const wikiPage: any = {
-      text: args.text,
-    };
-    
+    const text = this.resolveWikiText(args);
+
+    const wikiPage: any = { text };
     if (args.comments) wikiPage.comments = args.comments;
 
     await this.redmine.put(`/projects/${args.project_id}/wiki/${args.title}.json`, {
       wiki_page: wikiPage,
     });
 
+    const source = args.file_path ? ` from ${basename(args.file_path)}` : '';
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Created wiki page "${args.title}"\nURL: ${this.config.url}/projects/${args.project_id}/wiki/${args.title}`,
+          text: `✅ Created wiki page "${args.title}"${source} (${text.length} chars)\nURL: ${this.config.url}/projects/${args.project_id}/wiki/${args.title}`,
         },
       ],
     };
   }
 
   private async updateWikiPage(args: any) {
-    const wikiPage: any = {
-      text: args.text,
-    };
-    
+    const text = this.resolveWikiText(args);
+
+    const wikiPage: any = { text };
     if (args.comments) wikiPage.comments = args.comments;
 
     await this.redmine.put(`/projects/${args.project_id}/wiki/${args.title}.json`, {
       wiki_page: wikiPage,
     });
 
+    const source = args.file_path ? ` from ${basename(args.file_path)}` : '';
     return {
       content: [
         {
           type: 'text',
-          text: `✅ Updated wiki page "${args.title}"`,
+          text: `✅ Updated wiki page "${args.title}"${source} (${text.length} chars written, full replacement)`,
+        },
+      ],
+    };
+  }
+
+  /**
+   * Applies a single targeted change to a wiki page: append, prepend, or literal find/replace.
+   *
+   * The point of this over `update_wiki_page` is that the untouched part of the page never
+   * passes through the caller, so it cannot be truncated, reworded or dropped in transit.
+   * Two guards make the write refusable rather than silently wrong:
+   *
+   *  - `expect_count` — a replace whose match count differs from what the caller expected is
+   *    refused. A `find` that matches nothing is a no-op the caller would never notice; one
+   *    that matches five times when one was meant is a mass edit. Both become errors.
+   *  - `check_version` — the version read during the fetch is sent back, so Redmine rejects
+   *    the write if the page changed in between. Relevant here because several people and
+   *    agents edit the same wiki.
+   */
+  private async patchWikiPage(args: any) {
+    const mode = args.mode;
+    if (!['append', 'prepend', 'replace'].includes(mode)) {
+      throw new Error(`Unknown mode "${mode}" — expected append, prepend or replace.`);
+    }
+
+    const current = await this.fetchWikiPage(args.project_id, args.title);
+    const before = current.text;
+    const { after, summary } = applyWikiPatch(before, args);
+
+    if (after === before) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `No change: the patch produced text identical to the current page "${args.title}". Nothing was written.`,
+          },
+        ],
+      };
+    }
+
+    const wikiPage: any = { text: after };
+    if (args.comments) wikiPage.comments = args.comments;
+    if (args.check_version !== false) wikiPage.version = current.version;
+
+    try {
+      await this.redmine.put(`/projects/${args.project_id}/wiki/${args.title}.json`, {
+        wiki_page: wikiPage,
+      });
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        throw new Error(
+          `Conflict: "${args.title}" was edited by someone else after it was read (expected version ${current.version}). ` +
+            'Re-read the page and re-apply the patch. Pass check_version: false only to overwrite their change deliberately.'
+        );
+      }
+      throw error;
+    }
+
+    const delta = after.length - before.length;
+    const sign = delta >= 0 ? '+' : '';
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Patched wiki page "${args.title}" (${mode}): ${summary}. Size ${before.length} -> ${after.length} chars (${sign}${delta}).`,
         },
       ],
     };
@@ -999,6 +1159,15 @@ ${issue.description || 'No description'}${journalsText}
   private async getWikiPage(args: any) {
     const response = await this.redmine.get(`/projects/${args.project_id}/wiki/${args.title}.json`);
     const page = response.data.wiki_page;
+
+    // `raw` returns the body byte-for-byte. The decorated form below is friendlier to read but
+    // is NOT round-trip safe: re-submitting it would bake the heading and version footer into
+    // the page itself.
+    if (args.raw === true) {
+      return {
+        content: [{ type: 'text', text: page.text ?? '' }],
+      };
+    }
 
     return {
       content: [

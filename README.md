@@ -14,6 +14,7 @@ Model Context Protocol (MCP) server for Redmine project management integration. 
 - ✅ List and filter issues by project and status
 - ✅ Get detailed issue information
 - ✅ List all accessible projects
+- ✅ Read, create and update wiki pages — from a file for large content, or with a targeted `append`/`prepend`/`replace` patch that leaves the rest of the page untouched
 
 ## Installation
 
@@ -149,6 +150,47 @@ List all accessible Redmine projects.
 **Example:**
 ```
 List all my Redmine projects
+```
+
+### Wiki tools
+
+#### get_wiki_page
+Read a wiki page.
+
+`raw: true` returns **only** the page body — no title heading, no version footer. Use it whenever the text will be read back and rewritten: the decorated default is not round-trip safe, because re-submitting it would bake the heading and footer into the page itself.
+
+#### create_wiki_page / update_wiki_page
+Write a page. Supply the body **either** inline via `text` **or** from a file via `file_path` — exactly one of the two. Supplying both is refused rather than silently picking one, and supplying neither is refused rather than blanking the page.
+
+`file_path` reads a UTF-8 file from disk and writes its contents verbatim. Prefer it for anything large: nothing has to pass through the model, so a big page can't be truncated or subtly reworded in transit.
+
+> ⚠️ **`update_wiki_page` replaces the entire page body.** It is not a patch. If you only mean to change part of a page, use `patch_wiki_page` — a full overwrite built from a partial body is the most common way to lose wiki content.
+
+#### patch_wiki_page
+Change part of a page without resending the whole body. Fetches the current text, applies one edit, writes it back — so untouched content never passes through the caller and cannot be lost.
+
+Modes:
+
+| Mode | Effect |
+|---|---|
+| `append` | add `text` to the end, separated by exactly one blank line |
+| `prepend` | add `text` to the start |
+| `replace` | substitute `find` with `text`; an empty `text` deletes the match |
+
+Two guards make a bad edit fail instead of succeeding wrongly:
+
+- **`expect_count`** (replace mode, default 1) — the write is refused unless `find` matches exactly that many times. A `find` matching nothing is a no-op nobody notices; a `find` matching five times when one was meant is an accidental mass edit. Both become errors. Pass `expect_count` explicitly to authorise a genuine multi-match replace.
+- **`check_version`** (default true) — the version read during the fetch is sent back, so Redmine refuses the write if the page changed in between. Set it to `false` only to deliberately overwrite someone else's concurrent edit.
+
+`find` is a **literal string, not a regex**, so `$`, `.`, `(` and friends need no escaping.
+
+**Examples:**
+```
+Append a new row to the tracking table on the Epic_921 wiki page
+
+Replace "Status: paused" with "Status: active" on Closed_Beta_Focus
+
+Update Project_Status from C:\work\project-status.md
 ```
 
 ## Example Workflows
