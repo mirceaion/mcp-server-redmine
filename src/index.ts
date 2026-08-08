@@ -294,6 +294,25 @@ class RedmineMCPServer {
           },
         },
         {
+          name: 'list_wiki_pages',
+          description:
+            "List every wiki page in a project, with its version, last-updated date and parent. Use this before any wiki-wide operation — it is the only way to know the real page set, since a page reachable from no index would otherwise be invisible.",
+          inputSchema: {
+            type: 'object',
+            properties: {
+              project_id: { type: 'string', description: 'Project identifier (not ID)' },
+              sort: {
+                type: 'string',
+                enum: ['title', 'updated', 'version'],
+                description:
+                  "Default 'title'. 'updated' puts the most recently changed first, which is the useful order for spotting stale pages; 'version' puts the most-edited first.",
+              },
+            },
+            required: ['project_id'],
+          },
+          alwaysAllow: true,
+        },
+        {
           name: 'get_wiki_page',
           description: 'Get wiki page content',
           inputSchema: {
@@ -612,6 +631,8 @@ class RedmineMCPServer {
             return await this.updateWikiPage(request.params.arguments);
           case 'patch_wiki_page':
             return await this.patchWikiPage(request.params.arguments);
+          case 'list_wiki_pages':
+            return await this.listWikiPages(request.params.arguments);
           case 'get_wiki_page':
             return await this.getWikiPage(request.params.arguments);
           case 'list_users':
@@ -1151,6 +1172,59 @@ ${issue.description || 'No description'}${journalsText}
         {
           type: 'text',
           text: `✅ Patched wiki page "${args.title}" (${mode}): ${summary}. Size ${before.length} -> ${after.length} chars (${sign}${delta}).`,
+        },
+      ],
+    };
+  }
+
+  /**
+   * Lists every wiki page in a project.
+   *
+   * `/wiki/index.json` returns the real page set, including pages no index links to — which is
+   * why this exists. A wiki-wide sweep driven off the links in an index page silently skips
+   * anything orphaned, and an orphan is exactly the page most likely to have gone stale.
+   *
+   * Titles are returned as Redmine's own identifiers (underscored), because those are what the
+   * other wiki tools take as their `title` argument.
+   */
+  private async listWikiPages(args: any) {
+    const response = await this.redmine.get(`/projects/${args.project_id}/wiki/index.json`);
+    const pages: any[] = response.data.wiki_pages ?? [];
+
+    if (pages.length === 0) {
+      return {
+        content: [{ type: 'text', text: `No wiki pages in project "${args.project_id}".` }],
+      };
+    }
+
+    const sort = args.sort ?? 'title';
+    const sorted = [...pages];
+    if (sort === 'updated') {
+      sorted.sort((a, b) => String(b.updated_on ?? '').localeCompare(String(a.updated_on ?? '')));
+    } else if (sort === 'version') {
+      sorted.sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
+    } else {
+      sorted.sort((a, b) => String(a.title).localeCompare(String(b.title)));
+    }
+
+    const lines = sorted.map((p) => {
+      const updated = p.updated_on ? String(p.updated_on).slice(0, 10) : '—';
+      const parent = p.parent?.title ? `  (child of ${p.parent.title})` : '';
+      return `${p.title}  ·  v${p.version ?? '?'}  ·  updated ${updated}${parent}`;
+    });
+
+    const withParents = pages.filter((p) => p.parent?.title).length;
+    const hierarchy = withParents > 0 ? ` ${withParents} are child pages.` : '';
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text:
+            `${pages.length} wiki page(s) in "${args.project_id}", sorted by ${sort}.${hierarchy}\n\n` +
+            `${lines.join('\n')}\n\n` +
+            'Titles above are Redmine identifiers — pass them verbatim as `title` to get_wiki_page, ' +
+            'update_wiki_page or patch_wiki_page.',
         },
       ],
     };

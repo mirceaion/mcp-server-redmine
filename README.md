@@ -4,6 +4,8 @@
 |---|---|---|---|
 | 1.0 | 2026-07-18 | Claude | Version table added retroactively; documents existing tool set |
 | 1.1 | 2026-07-18 | Claude | `get_issue`: new optional `include_journals` parameter (comment history) |
+| 1.2 | 2026-08-08 | Claude | Wiki writes: `file_path` as an alternative to inline `text` on create/update; new `patch_wiki_page` (append/prepend/replace, guarded by `expect_count` and `check_version`); `raw` option on `get_wiki_page` so a read-modify-write cannot bake the title heading and version footer into the page |
+| 1.3 | 2026-08-08 | Claude | New `list_wiki_pages` — returns the real page set including pages no index links to, which a link-driven sweep would silently miss |
 
 Model Context Protocol (MCP) server for Redmine project management integration. Allows AI assistants to create, update, and query Redmine issues directly from conversations.
 
@@ -14,7 +16,7 @@ Model Context Protocol (MCP) server for Redmine project management integration. 
 - ✅ List and filter issues by project and status
 - ✅ Get detailed issue information
 - ✅ List all accessible projects
-- ✅ Read, create and update wiki pages — from a file for large content, or with a targeted `append`/`prepend`/`replace` patch that leaves the rest of the page untouched
+- ✅ Full wiki access — list every page, read, create and update from a file for large content, or apply a targeted `append`/`prepend`/`replace` patch that leaves the rest of the page untouched
 
 ## Installation
 
@@ -153,6 +155,11 @@ List all my Redmine projects
 ```
 
 ### Wiki tools
+
+#### list_wiki_pages
+List every page in a project's wiki, with version, last-updated date and parent. `sort` accepts `title` (default), `updated` (most recently changed first — the useful order for spotting stale pages) or `version` (most-edited first).
+
+Use it before any wiki-wide operation. It returns the **real** page set, including pages that no index links to — a sweep driven off the `[[links]]` in an index page silently skips orphans, and an orphan is exactly the page most likely to have gone stale. Titles come back as Redmine identifiers, so they can be passed verbatim as `title` to the other wiki tools.
 
 #### get_wiki_page
 Read a wiki page.
