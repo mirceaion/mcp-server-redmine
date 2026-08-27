@@ -1,5 +1,10 @@
 # MCP Server for Redmine - Project Summary
 
+| Version | Date | Author | Summary |
+|---|---|---|---|
+| 1.0 | 2026-02-23 | Claude | Version table added retroactively; documents the tool set as of v1.1.0 |
+| 1.1 | 2026-08-27 | Claude | `search_issues`, `copy_issue`, `delete_issue` added; `list_issues` gains tracker/offset filtering and paging visibility — closes RedmineMCP #39 |
+
 ## What We Built
 
 A **Model Context Protocol (MCP) server** that enables AI assistants (like Amazon Q) to interact directly with Redmine project management systems. This allows you to manage tasks, create issues, and plan projects through natural language conversations.
@@ -18,6 +23,7 @@ A **Model Context Protocol (MCP) server** that enables AI assistants (like Amazo
 │  │  Tools:                                              │   │
 │  │  - create_issue    - update_issue                    │   │
 │  │  - list_issues     - get_issue                       │   │
+│  │  - search_issues   - copy_issue    - delete_issue    │   │
 │  │  - list_projects                                     │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────┬───────────────────────────────────────┘
@@ -34,8 +40,10 @@ A **Model Context Protocol (MCP) server** that enables AI assistants (like Amazo
 ### 1. Issue Management
 - Create issues with full metadata (priority, estimates, descriptions, custom fields)
 - Update issues (status, priority, assignments, dates, versions)
-- List and filter issues by project, status, assignee
+- List and filter issues by project, status, tracker and assignee; page past the first result set with `offset`
+- Full-text search across issue subjects/descriptions
 - Get detailed issue information
+- Copy an issue (with field overrides) or delete one
 - Bulk update multiple issues
 - Parent/child relationships for subtasks
 - Issue relations (blocks, relates, duplicates, precedes, follows)
@@ -305,13 +313,11 @@ Reduce context switching and manual data entry.
 ## Limitations & Future Enhancements
 
 ### Current Limitations
-- No advanced search/filtering
 - No email notifications configuration
 - No role management
 - No workflow customization
 
 ### Potential Enhancements
-- [ ] Advanced issue filtering and search
 - [ ] Email notification settings
 - [ ] Role and permission management
 - [ ] Workflow customization
@@ -425,6 +431,12 @@ This is a minimal implementation. Contributions welcome for:
 - Tests
 
 ## Changelog
+
+### v1.4.0 (2026-08-27)
+- Added `search_issues` (full-text, via Redmine's `/search.json`)
+- Added `copy_issue` and `delete_issue`
+- `list_issues` gains `tracker_id` and `offset` filters, and reports `total_count`/paging so a capped page isn't mistaken for the full result
+- `list_issues` and `get_issue` now show each issue's tracker name
 
 ### v1.0.0 (2026-02-22)
 - Initial release with basic CRUD operations

@@ -6,6 +6,7 @@
 | 1.1 | 2026-07-18 | Claude | `get_issue`: new optional `include_journals` parameter (comment history) |
 | 1.2 | 2026-08-08 | Claude | Wiki writes: `file_path` as an alternative to inline `text` on create/update; new `patch_wiki_page` (append/prepend/replace, guarded by `expect_count` and `check_version`); `raw` option on `get_wiki_page` so a read-modify-write cannot bake the title heading and version footer into the page |
 | 1.3 | 2026-08-08 | Claude | New `list_wiki_pages` — returns the real page set including pages no index links to, which a link-driven sweep would silently miss |
+| 1.4 | 2026-08-27 | Claude | `list_issues` gains `tracker_id` and `offset` filters, reports `total_count`/paging so a capped page can't be mistaken for the full result; `get_issue` and `list_issues` now show each issue's tracker name. New `search_issues` (full-text, via Redmine's `/search.json`), `copy_issue`, `delete_issue` — closes RedmineMCP #39 |
 
 Model Context Protocol (MCP) server for Redmine project management integration. Allows AI assistants to create, update, and query Redmine issues directly from conversations.
 
@@ -13,8 +14,10 @@ Model Context Protocol (MCP) server for Redmine project management integration. 
 
 - ✅ Create issues with full metadata (priority, estimates, parent tasks)
 - ✅ Update existing issues (status, description, comments)
-- ✅ List and filter issues by project and status
+- ✅ List and filter issues by project, status and tracker; page past the first result set with `offset`
+- ✅ Full-text search across issue subjects/descriptions (`search_issues`)
 - ✅ Get detailed issue information
+- ✅ Copy or delete an issue
 - ✅ List all accessible projects
 - ✅ Full wiki access — list every page, read, create and update from a file for large content, or apply a targeted `append`/`prepend`/`replace` patch that leaves the rest of the page untouched
 
@@ -122,20 +125,57 @@ Update Redmine issue #123 status to 3 (Resolved) and add note "Implementation co
 ```
 
 ### list_issues
-List issues from a project.
+List issues from a project. Each line shows the issue's tracker name alongside its status.
 
 **Parameters:**
 - `project_id` (required): Project ID
 - `status_id`: Filter by status ("open", "closed", or specific ID)
+- `tracker_id`: Filter by tracker (1=Bug, 2=Feature, 3=Support, 4=Epic — check `list_trackers`, IDs vary by instance)
+- `limit`: Max results per call (default 25, hard-capped at 100 by Redmine itself regardless of what's requested)
+- `offset`: Skip this many issues, to page past the first `limit`
+
+The response reports `total_count` and, when more match than were returned, a `remaining`/next-`offset` note — a project with more open issues than fit in one page previously looked complete when it wasn't (`list_issues` silently capped at 100 with no way to tell there was more).
+
+**Example:**
+```
+List all open Bug-tracker issues in Redmine project 1
+```
+
+### search_issues
+Full-text search across issue subjects and descriptions — the tool for "find issues about X". `list_issues` only filters structured fields (status, tracker); it has no text-match filter, so a keyword search through it means walking every issue by hand.
+
+**Parameters:**
+- `query` (required): Search text
+- `project_id`: Restrict to one project (Redmine **identifier** string, e.g. `"gurmand"` — not the numeric project ID `list_issues` takes)
+- `open_issues_only`: Match only open issues (default false)
+- `titles_only`: Match only subjects, not descriptions/comments (default false)
 - `limit`: Max results (default 25)
 
 **Example:**
 ```
-List all open issues in Redmine project 1
+Search Redmine project gurmand for issues mentioning "focus ring"
 ```
 
+### copy_issue
+Duplicate an issue. Redmine's REST API has no copy endpoint, so this reads the source issue and creates a new one from its fields; any field you pass overrides the source's value. The copy's status defaults to New (not the source's current status) unless `status_id` is given explicitly.
+
+**Parameters:**
+- `issue_id` (required): Issue ID to copy from
+- `project_id`, `subject`, `tracker_id`, `status_id`, `priority_id`, `assigned_to_id`, `description`: overrides for the copy — each defaults to the source issue's value (status defaults to New instead)
+
+**Example:**
+```
+Copy Redmine issue #123 into project 2 with subject "Port fix to Reborn"
+```
+
+### delete_issue
+Permanently delete an issue. **Irreversible** — Redmine does not soft-delete, and there is no undo. Requires delete permission on the issue's project.
+
+**Parameters:**
+- `issue_id` (required): Issue ID to delete
+
 ### get_issue
-Get detailed information about a specific issue.
+Get detailed information about a specific issue, including its tracker.
 
 **Parameters:**
 - `issue_id` (required): Issue ID

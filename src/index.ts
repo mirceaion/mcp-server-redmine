@@ -134,13 +134,15 @@ class RedmineMCPServer {
         },
         {
           name: 'list_issues',
-          description: 'List issues from a project',
+          description: 'List issues from a project. Results are capped at `limit` per call (Redmine also caps at 100 regardless of what is requested) — use `offset` to page through more, and check the returned total count against what you have seen so far before assuming the list is complete.',
           inputSchema: {
             type: 'object',
             properties: {
               project_id: { type: 'number', description: 'Project ID' },
               status_id: { type: 'string', description: 'Status filter (open, closed, or specific ID)' },
-              limit: { type: 'number', description: 'Max results (default 25)' },
+              tracker_id: { type: 'number', description: 'Filter by tracker ID (1=Bug, 2=Feature, 3=Support, 4=Epic — see list_trackers for the authoritative set)' },
+              limit: { type: 'number', description: 'Max results per call (default 25, hard-capped at 100 by Redmine)' },
+              offset: { type: 'number', description: 'Number of issues to skip, for paging past the first `limit` results' },
             },
             required: ['project_id'],
           },
@@ -537,6 +539,51 @@ class RedmineMCPServer {
           },
         },
         {
+          name: 'search_issues',
+          description: 'Full-text search across issue subjects and descriptions, via Redmine\'s dedicated search endpoint. This is the correct tool for "find issues about X" — list_issues only filters by structured fields (status, tracker), it cannot match on text content.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              query: { type: 'string', description: 'Search text' },
+              project_id: { type: 'string', description: 'Restrict to one project (identifier, not numeric ID). Omit to search all accessible projects.' },
+              open_issues_only: { type: 'boolean', description: 'Only match open issues (default false: match open and closed)' },
+              titles_only: { type: 'boolean', description: 'Match only against issue subjects, not descriptions/comments (default false)' },
+              limit: { type: 'number', description: 'Max results (default 25)' },
+            },
+            required: ['query'],
+          },
+          alwaysAllow: true,
+        },
+        {
+          name: 'copy_issue',
+          description: 'Duplicate an issue, optionally overriding fields on the copy (e.g. a different project, subject, or assignee). Redmine has no native copy endpoint — this reads the source issue and creates a new one from its fields.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              issue_id: { type: 'number', description: 'Issue ID to copy from' },
+              project_id: { type: 'number', description: 'Project for the copy (default: same as source)' },
+              subject: { type: 'string', description: 'Subject for the copy (default: same as source)' },
+              tracker_id: { type: 'number', description: 'Tracker for the copy (default: same as source)' },
+              status_id: { type: 'number', description: 'Status for the copy (default: New, not the source\'s current status)' },
+              priority_id: { type: 'number', description: 'Priority for the copy (default: same as source)' },
+              assigned_to_id: { type: 'number', description: 'Assignee for the copy (default: same as source)' },
+              description: { type: 'string', description: 'Description for the copy (default: same as source)' },
+            },
+            required: ['issue_id'],
+          },
+        },
+        {
+          name: 'delete_issue',
+          description: 'Permanently delete an issue. Irreversible — Redmine does not soft-delete. Requires delete permission on the issue\'s project.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              issue_id: { type: 'number', description: 'Issue ID to delete' },
+            },
+            required: ['issue_id'],
+          },
+        },
+        {
           name: 'list_issue_statuses',
           description: 'List available issue statuses',
           inputSchema: {
@@ -667,6 +714,12 @@ class RedmineMCPServer {
             return await this.addProjectMember(request.params.arguments);
           case 'bulk_update_issues':
             return await this.bulkUpdateIssues(request.params.arguments);
+          case 'search_issues':
+            return await this.searchIssues(request.params.arguments);
+          case 'copy_issue':
+            return await this.copyIssue(request.params.arguments);
+          case 'delete_issue':
+            return await this.deleteIssue(request.params.arguments);
           case 'list_issue_statuses':
             return await this.listIssueStatuses();
           case 'list_trackers':
@@ -780,19 +833,29 @@ class RedmineMCPServer {
       limit: args.limit || this.config.defaultIssuesLimit,
     };
     if (args.status_id) params.status_id = args.status_id;
+    if (args.tracker_id) params.tracker_id = args.tracker_id;
+    if (args.offset) params.offset = args.offset;
 
     const response = await this.redmine.get('/issues.json', { params });
     const issues = response.data.issues;
+    const totalCount = response.data.total_count ?? issues.length;
+    const offset = response.data.offset ?? 0;
 
     const text = issues
-      .map((i: any) => `#${i.id} - ${i.subject} [${i.status.name}]`)
+      .map((i: any) => `#${i.id} - ${i.subject} [${i.tracker?.name ?? 'Unknown'}] [${i.status.name}]`)
       .join('\n');
+
+    const seenThrough = offset + issues.length;
+    const remaining = totalCount - seenThrough;
+    const pagingNote = remaining > 0
+      ? `\n\n${remaining} more match beyond this page — pass offset: ${seenThrough} to continue.`
+      : '';
 
     return {
       content: [
         {
           type: 'text',
-          text: `Found ${issues.length} issues:\n\n${text}`,
+          text: `Found ${issues.length} of ${totalCount} matching issues (offset ${offset}):\n\n${text}${pagingNote}`,
         },
       ],
     };
@@ -822,6 +885,7 @@ class RedmineMCPServer {
 
     const text = `
 Issue #${issue.id}: ${issue.subject}
+Tracker: ${issue.tracker?.name ?? 'Unknown'}
 Status: ${issue.status.name}
 Priority: ${issue.priority.name}
 Done: ${issue.done_ratio}%
@@ -1623,6 +1687,91 @@ ${project.description || 'No description'}
         {
           type: 'text',
           text: summary,
+        },
+      ],
+    };
+  }
+
+  /**
+   * Full-text search via Redmine's dedicated /search.json endpoint, scoped to issues only
+   * (`issues=1` and `open_issues=1` are the endpoint's own scope flags, not issue field filters).
+   * `issues.json` has no text-match filter, so this is the only path to "find issues about X".
+   */
+  private async searchIssues(args: any) {
+    const params: any = {
+      q: args.query,
+      issues: 1,
+      limit: args.limit || this.config.defaultIssuesLimit,
+    };
+    if (args.open_issues_only) params.open_issues = 1;
+    if (args.titles_only) params.titles_only = 1;
+
+    const path = args.project_id ? `/projects/${args.project_id}/search.json` : '/search.json';
+    const response = await this.redmine.get(path, { params });
+    const results = (response.data.results || []).filter((r: any) => r.type === 'issue');
+
+    if (results.length === 0) {
+      return {
+        content: [{ type: 'text', text: `No issues matched "${args.query}".` }],
+      };
+    }
+
+    const text = results
+      .map((r: any) => `#${r.id} - ${r.title}${r.description ? `\n    ${r.description.slice(0, 150)}` : ''}`)
+      .join('\n');
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Found ${results.length} issue(s) matching "${args.query}":\n\n${text}`,
+        },
+      ],
+    };
+  }
+
+  /**
+   * Redmine's REST API has no copy endpoint, so a "copy" is a read of the source issue
+   * followed by a create — any field not explicitly overridden in `args` is carried over
+   * from the source, except status, which defaults to New rather than the source's current
+   * status (a copy of a Resolved issue that silently opened as Resolved would be an odd
+   * default nobody asked for).
+   */
+  private async copyIssue(args: any) {
+    const sourceResponse = await this.redmine.get(`/issues/${args.issue_id}.json`);
+    const source = sourceResponse.data.issue;
+
+    const issue: any = {
+      project_id: args.project_id || source.project.id,
+      tracker_id: args.tracker_id || source.tracker.id,
+      subject: args.subject || source.subject,
+      description: args.description !== undefined ? args.description : source.description,
+      priority_id: args.priority_id || source.priority.id,
+      status_id: args.status_id,
+      assigned_to_id: args.assigned_to_id || source.assigned_to?.id,
+    };
+
+    const response = await this.redmine.post('/issues.json', { issue });
+    const created = response.data.issue;
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Copied issue #${source.id} to new issue #${created.id}: ${created.subject}\nURL: ${this.config.url}/issues/${created.id}`,
+        },
+      ],
+    };
+  }
+
+  private async deleteIssue(args: any) {
+    await this.redmine.delete(`/issues/${args.issue_id}.json`);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `✅ Deleted issue #${args.issue_id}`,
         },
       ],
     };
