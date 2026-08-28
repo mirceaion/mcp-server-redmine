@@ -1,0 +1,28 @@
+name: Mirror release to GitHub
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create matching GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GH_RELEASE_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+          NAME: ${{ github.event.release.name }}
+          BODY: ${{ github.event.release.body }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          curl -sf -X POST "https://api.github.com/repos/mirceaion/mcp-server-redmine/releases" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -n \
+              --arg tag "$TAG" \
+              --arg name "$NAME" \
+              --arg body "$BODY" \
+              --argjson prerelease "$PRERELEASE" \
+              '{tag_name: $tag, name: $name, body: $body, prerelease: $prerelease}')"
